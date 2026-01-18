@@ -34,7 +34,9 @@ enable_language(C ASM)
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
         User/Inc/BSP-FDCAN.h
-        User/Src/BSP_FDCAN.c)
+        User/Src/BSP_FDCAN.c
+        User/Inc/Motor.h
+        User/Src/Motor.c)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)

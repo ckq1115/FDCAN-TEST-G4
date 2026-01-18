@@ -34,7 +34,11 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+  if (htim->Instance == TIM4) {
 
+  }
+}
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
