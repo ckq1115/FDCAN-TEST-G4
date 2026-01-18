@@ -48,7 +48,6 @@ void MOTOR_CAN_RX_3508RM(DJI_MOTOR_DATA_Typedef* DATA , uint8_t* can_data)
 }
 
 /************************************************************万能分隔符**************************************************************
- * 	@author:			//小瑞
  *	@performance:	    //2006电机解算函数
  *	@parameter:		    //@电机结构体  @can接收到的数组
  *	@time:				//22-11-23 18:49
@@ -86,7 +85,6 @@ void MOTOR_CAN_RX_2006RM(DJI_MOTOR_DATA_Typedef* DATA , uint8_t* can_data)
 }
 
 /************************************************************万能分隔符**************************************************************
- * 	@author:			//王涵炜
  *	@performance:	    //6020电机解算函数
  *	@parameter:		    //@电机结构体  @can接收到的数组
  *	@time:				//22-11-23 18:50
@@ -131,7 +129,6 @@ void MOTOR_CAN_RX_6020RM(DJI_MOTOR_DATA_Typedef* DATA , uint8_t* can_data)
 }
 
 /*/************************************************************万能分隔符**************************************************************
- * 	@author:			//小瑞
  *	@performance:	    //电机清空函数
  *	@parameter:		    //
  *	@time:				//23-04-13 19:23
@@ -148,7 +145,6 @@ void HEAD_MOTOR_CLEAR(DJI_MOTOR_Typedef* MOTOR , uint8_t mode)
 }
 
 /************************************************************万能分隔符**************************************************************
- * 	@author:			//小瑞
  *	@performance:	    //2006电机堵转检测函数
  *	@parameter:		    //
  *	@time:				//23-04-13 20:31
@@ -178,7 +174,6 @@ void HEAD_MOTOR2006_STUCK(DJI_MOTOR_Typedef* MOTOR , float ERROR_ANGLE , float E
 }*/
 
 /************************************************************万能分隔符**************************************************************
- * 	@author:			//小瑞
  *	@performance:	    //3508堵转检测
  *	@parameter:		    //
  *	@time:				//23-05-25 18:14
@@ -246,8 +241,6 @@ void MotorRoundResolve(DJI_MOTOR_Typedef *motor)
     {
         motor->DATA.round += 1;
     }
-
     motor->DATA.Angle_last = motor->DATA.Angle_now;
-
     motor->DATA.conEncode = motor->DATA.round * ENCODER_MAX + motor->DATA.Angle_now;
 }
