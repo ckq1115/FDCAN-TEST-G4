@@ -29,7 +29,22 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+extern uint32_t _siccmram; /* CCMRAM 初始值在 Flash 中的地址 */
+extern uint32_t _sccmram;  /* CCMRAM 在 RAM 中的起始地址 */
+extern uint32_t _eccmram;  /* CCMRAM 在 RAM 中的结束地址 */
 
+/**
+  * @brief 手动初始化 CCMRAM 数据段
+  */
+void CCMRAM_Init(void) {
+  uint32_t *pSource = &_siccmram;
+  uint32_t *pDest = &_sccmram;
+
+  /* 将数据从 Flash 拷贝到 CCMRAM */
+  while (pDest < &_eccmram) {
+    *pDest++ = *pSource++;
+  }
+}
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/

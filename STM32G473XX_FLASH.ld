@@ -56,6 +56,7 @@ ENTRY(Reset_Handler)
 MEMORY
 {
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
+CCMRAM (xrw)    : ORIGIN = 0x10000000, LENGTH = 32K
 FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
 }
 
@@ -69,6 +70,15 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 SECTIONS
 {
   /* The startup code goes first into FLASH */
+  .ccmram :
+    {
+      . = ALIGN(4);
+      _sccmram = .;       /* 段起始地址 */
+      *(.ccmram)
+      *(.ccmram*)
+      . = ALIGN(4);
+      _eccmram = .;       /* 段结束地址 */
+    } >CCMRAM AT> FLASH
   .isr_vector :
   {
     . = ALIGN(4);
