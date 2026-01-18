@@ -203,7 +203,6 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 
 					break;
 				case 0x203:
-
 					break;
 			}
 		}
