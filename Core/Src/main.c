@@ -26,6 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "BSP-FDCAN.h"
 #include "Vofa.h"
 /* USER CODE END Includes */
 
@@ -112,14 +113,16 @@ int main(void)
   MX_TIM4_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start(&htim4);
+  FDCAN1_Config();
+  FDCAN2_Config();
+  FDCAN3_Config();
+  HAL_TIM_Base_Start_IT(&htim4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    VOFA_justfloat(0,1,2,3,4,5,6,7,8,9);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -244,3 +244,17 @@ void MotorRoundResolve(DJI_MOTOR_Typedef *motor)
     motor->DATA.Angle_last = motor->DATA.Angle_now;
     motor->DATA.conEncode = motor->DATA.round * ENCODER_MAX + motor->DATA.Angle_now;
 }
+
+ALL_POWER_RX All_Power;
+void CAN_POWER_Rx(Power_Typedef* Power, uint8_t *rx_data)
+{
+    int16_t raw_shunt = (int16_t)((rx_data[0] << 8) | rx_data[1]);
+    int16_t raw_bus = (int16_t)((rx_data[2] << 8) | rx_data[3]);
+    int16_t raw_curr = (int16_t)((rx_data[4] << 8) | rx_data[5]);
+    int16_t raw_pwr = (int16_t)((rx_data[6] << 8) | rx_data[7]);
+
+    Power->shunt_volt = (float)raw_shunt / 1000.0f;
+    Power->bus_volt   = (float)raw_bus   / 1000.0f;
+    Power->current    = (float)raw_curr  / 1000.0f;
+    Power->power      = (float)raw_pwr   / 100.0f;
+}
