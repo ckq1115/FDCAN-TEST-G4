@@ -59,6 +59,7 @@ typedef struct{
     Power_Typedef P2;
     Power_Typedef P3;
     Power_Typedef P4;
+    Power_Typedef P5;
 }ALL_POWER_RX;
 
 extern ALL_POWER_RX All_Power;

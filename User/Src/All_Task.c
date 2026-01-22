@@ -9,11 +9,19 @@
 #include "Motor.h"
 #include "All_Task.h"
 
+#include "BSP_ICM42688P.h"
+
 float a=0;
+ICM42688_t imu;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4) {
         a+=0.1;
-        DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
+        ICM42688_Update(&imu);
+        /*if (ICM42688_IsDataReady()) {
+            ICM42688_Update(&imu);
+            // 直接读取 imu.acc_g[0], imu.gyr_dps[2] 等物理值
+        }*/
+        //DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
     }
 }
 
@@ -53,8 +61,12 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
                     CAN_POWER_Rx(&All_Power.P3,g_Can1RxData);
                 case 0x604:
                     CAN_POWER_Rx(&All_Power.P4,g_Can1RxData);*/
+                case 0x605:
+                    CAN_POWER_Rx(&All_Power.P5,g_Can1RxData);
+                    break;
                 case 0x207:
                     MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA,g_Can1RxData);
+                    break;
             }
         }
 

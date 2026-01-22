@@ -20,6 +20,7 @@
 #include "main.h"
 #include "dma.h"
 #include "fdcan.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -27,6 +28,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "BSP-FDCAN.h"
+#include "BSP_ICM42688P.h"
 #include "Vofa.h"
 /* USER CODE END Includes */
 
@@ -112,11 +114,16 @@ int main(void)
   MX_FDCAN3_Init();
   MX_TIM4_Init();
   MX_USART2_UART_Init();
+  MX_SPI2_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   FDCAN1_Config();
   FDCAN2_Config();
   FDCAN3_Config();
   HAL_TIM_Base_Start_IT(&htim4);
+  if (ICM42688_Init() != 0) {
+    Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
