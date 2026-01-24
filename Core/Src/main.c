@@ -27,9 +27,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "BSP-FDCAN.h"
-#include "BSP_ICM42688P.h"
-#include "Vofa.h"
+#include "All_Task.h"
+#include "WS2812.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -116,20 +115,19 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI2_Init();
   MX_USART3_UART_Init();
+  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-  FDCAN1_Config();
-  FDCAN2_Config();
-  FDCAN3_Config();
-  HAL_TIM_Base_Start_IT(&htim4);
-  if (ICM42688_Init() != 0) {
-    Error_Handler();
-  }
+
+  All_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    //WS2812_TrailingRunningLight(0, 255, 255, 75, 250);
+    WS2812_RainbowCycle(5);
+    HAL_Delay(40);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

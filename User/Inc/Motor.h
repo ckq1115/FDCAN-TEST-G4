@@ -6,6 +6,7 @@
 #define FDCAN_TEST_G4_MOTOR_H
 
 #include "BSP-FDCAN.h"
+#include "CKQ_MATH.h"
 
 typedef struct
 {

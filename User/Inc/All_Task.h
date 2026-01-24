@@ -5,7 +5,16 @@
 #ifndef FDCAN_TEST_G4_ALL_TASK_H
 #define FDCAN_TEST_G4_ALL_TASK_H
 
+#include <string.h>
 #include "main.h"
+#include "DBUS.h"
+#include "Motor.h"
+#include "All_Task.h"
+#include "DBUS.h"
+#include "BSP_ICM42688P.h"
+#include "tim.h"
+#include "usart.h"
+#include "WS2812.h"
 
 #define off_line 0
 #define on_Line  1
@@ -26,5 +35,6 @@ typedef struct
 }Speed_Solve;
 extern Speed_Solve Omni;
 void speed_solve(void);
+void All_Init(void);
 
 #endif //FDCAN_TEST_G4_ALL_TASK_H

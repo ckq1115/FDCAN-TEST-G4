@@ -1,38 +1,31 @@
 //
 // Created by CaoKangqi on 2026/1/19.
 //
-#include <string.h>
-
-#include "main.h"
-#include "BSP-FDCAN.h"
-#include "DBUS.h"
-#include "Motor.h"
 #include "All_Task.h"
 
-#include "BSP_ICM42688P.h"
-
+#include <stdint.h>
 float a=0;
+uint8_t DBUS_RX_DATA[19] = { 0 };
+DBUS_Typedef C_DBUS = { 0 };
+DBUS_UNION_Typdef C_DBUS_UNION = { 0 };
 ICM42688_t imu;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4) {
-        a+=0.1;
-        ICM42688_Update(&imu);
-        /*if (ICM42688_IsDataReady()) {
+        a+=0.001;
+        if (ICM42688_IsDataReady()) {
             ICM42688_Update(&imu);
-            // 直接读取 imu.acc_g[0], imu.gyr_dps[2] 等物理值
-        }*/
+        }
         //DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
     }
 }
 
-uint8_t DBUS[18] = {0};
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART3) {
-        DBUS_Resolve(DBUS);
-        HAL_UART_Receive_DMA(huart, DBUS, 18);
-        DBUS_Time = 0;
+    if(huart->Instance ==USART3)//遥控接收串口
+    {
+        DBUS_Resolved(DBUS_RX_DATA, &C_DBUS,&C_DBUS_UNION);
+        HAL_UART_Receive_DMA(&huart3, (uint8_t *)DBUS_RX_DATA,37);  //重启开始DMA传输
+
     }
 }
 
@@ -113,5 +106,21 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
                     MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA,g_Can2RxData);
             }
         }
+    }
+}
+
+void All_Init() {
+    FDCAN1_Config();
+    FDCAN2_Config();
+    FDCAN3_Config();
+    HAL_TIM_Base_Start_IT(&htim4);
+    HAL_DMA_DeInit(&hdma_usart3_rx);
+    HAL_DMA_Init(&hdma_usart3_rx);
+    HAL_UART_DMAStop(&huart3);
+    __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);//遥控串口
+    HAL_UART_Receive_DMA(&huart3,(uint8_t *)DBUS_RX_DATA,37);
+    WS2812_Init();
+    if (ICM42688_Init() != 0) {
+        Error_Handler();
     }
 }

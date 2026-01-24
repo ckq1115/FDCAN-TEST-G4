@@ -5,13 +5,6 @@
 
 All_Motor_TypeDef All_Motor;
 
-float MATH_ABS_float(float DATA)
-{
-    uint32_t RUI_V_TEMP = *(uint32_t*) &DATA;
-    RUI_V_TEMP &= 0x7FFFFFFF; // 将符号位清零
-    return *(float*) &RUI_V_TEMP;
-}
-
 void MOTOR_CAN_RX_3508RM(DJI_MOTOR_DATA_Typedef* DATA , uint8_t* can_data)
 {
     DATA->Angle_last = DATA->Angle_now;
