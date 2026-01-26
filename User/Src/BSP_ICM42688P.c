@@ -83,7 +83,7 @@ void ICM42688_SetODR_FSR(uint8_t a_odr, uint8_t a_fsr, uint8_t g_odr, uint8_t g_
 }
 
 /**
- * @brief 开启/关闭 FIFO 功能 (高级功能)
+ * @brief 开启/关闭 FIFO 功能
  */
 void ICM42688_Config_FIFO(uint8_t enable) {
     if(enable) {
@@ -94,10 +94,9 @@ void ICM42688_Config_FIFO(uint8_t enable) {
 }
 
 uint8_t ICM42688_IsDataReady(void) {
-    // 方式 A: 读取硬件引脚 (推荐，如果你连接了 DRDY 引脚)
+    // 方式 A: 读取硬件引脚
     //return HAL_GPIO_ReadPin(ICM_DRDY_PORT, ICM_DRDY_PIN) == GPIO_PIN_SET;
-
-    // 方式 B: 如果没连引脚，可以读取状态寄存器
+    // 方式 B: 读取状态寄存器
      return (ReadReg(REG_INT_STATUS) & 0x08);
 }
 

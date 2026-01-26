@@ -174,7 +174,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 
     /* TIM8 DMA Init */
     /* TIM8_CH4 Init */
-    hdma_tim8_ch4.Instance = DMA1_Channel3;
+    hdma_tim8_ch4.Instance = DMA1_Channel2;
     hdma_tim8_ch4.Init.Request = DMA_REQUEST_TIM8_CH4;
     hdma_tim8_ch4.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_tim8_ch4.Init.PeriphInc = DMA_PINC_DISABLE;
