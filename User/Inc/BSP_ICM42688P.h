@@ -52,11 +52,47 @@ typedef struct {
     float temp_c;
 } ICM42688_t;
 
+/* --- 加速度计量程枚举 --- */
+typedef enum {
+    ACCEL_FS_16G = 0,  // 对应寄存器值 0x00
+    ACCEL_FS_8G  = 1,  // 对应寄存器值 0x01
+    ACCEL_FS_4G  = 2,  // 对应寄存器值 0x02
+    ACCEL_FS_2G  = 3,  // 对应寄存器值 0x03
+} AccelFS_t;
+
+/* --- 陀螺仪量程枚举 --- */
+typedef enum {
+    GYRO_FS_2000DPS = 0,
+    GYRO_FS_1000DPS = 1,
+    GYRO_FS_500DPS  = 2,
+    GYRO_FS_250DPS  = 3,
+    GYRO_FS_125DPS  = 4,
+    GYRO_FS_62_5DPS = 5,
+    GYRO_FS_31_25DPS = 6,
+    GYRO_FS_15_625DPS = 7,
+} GyroFS_t;
+
+/* --- 采样频率 ODR 枚举 --- */
+typedef enum {
+    ODR_32kHz  = 0x01,
+    ODR_16kHz  = 0x02,
+    ODR_8kHz   = 0x03,
+    ODR_4kHz   = 0x04,
+    ODR_2kHz   = 0x05,
+    ODR_1kHz   = 0x06,
+    ODR_200Hz  = 0x07,
+    ODR_100Hz  = 0x08,
+    ODR_50Hz   = 0x09,
+    ODR_25Hz   = 0x0A,
+} ODR_t;
+
+// 全局分辨率变量，供数据处理函数使用
+extern float acc_res;
+extern float gyr_res;
 /* API 函数 */
 uint8_t ICM42688_Init(void);
-void    ICM42688_Update(ICM42688_t *dev);
 uint8_t ICM42688_IsDataReady(void);
-void    ICM42688_Config_FIFO(uint8_t enable);
-void    ICM42688_SetODR_FSR(uint8_t accel_odr, uint8_t accel_fsr, uint8_t gyro_odr, uint8_t gyro_fsr);
-
+void ICM42688_Config_FIFO(uint8_t enable);
+void ICM42688_SetFormat(ODR_t a_odr, AccelFS_t a_fsr, ODR_t g_odr, GyroFS_t g_fsr);
+void ICM42688_read(float gyro[3], float accel[3], float *temperature);
 #endif //FDCAN_TEST_G4_BSP_ICM42688P_H

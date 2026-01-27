@@ -63,7 +63,9 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Inc/WS2812.h
         User/Src/WS2812.c
         User/Inc/CKQ_MATH.h
-        User/Src/CKQ_MATH.c)
+        User/Src/CKQ_MATH.c
+        User/Src/IMU_Task.c
+        User/Inc/IMU_Task.h)
 
 # 添加用户源文件 (请根据实际文件增减)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE

@@ -3,7 +3,8 @@
 //
 #include "BSP_ICM42688P.h"
 
-static float acc_res = 0, gyr_res = 0;
+float acc_res = 0;
+float gyr_res = 0;
 static uint8_t current_bank = 0xFF;
 
 /* 内部私有：控制 CS */
@@ -61,7 +62,7 @@ uint8_t ICM42688_Init(void) {
     HAL_Delay(50);
 
     // 5. 默认配置量程和频率 (1kHz, 16g, 2000dps)
-    ICM42688_SetODR_FSR(0x06, 0x00, 0x06, 0x00);
+    ICM42688_SetFormat(ODR_1kHz, ACCEL_FS_16G, ODR_1kHz, GYRO_FS_2000DPS);
 
     return 0;
 }
@@ -69,17 +70,25 @@ uint8_t ICM42688_Init(void) {
 /**
  * @brief 设置采样率(ODR)和量程(FSR)
  */
-void ICM42688_SetODR_FSR(uint8_t a_odr, uint8_t a_fsr, uint8_t g_odr, uint8_t g_fsr) {
-    // Accel: bit[3:0] ODR, bit[7:5] FSR
+void ICM42688_SetFormat(ODR_t a_odr, AccelFS_t a_fsr, ODR_t g_odr, GyroFS_t g_fsr) {
+    // 1. 写入寄存器配置
+    // ACCEL_CONFIG0: bit[7:5]是量程, bit[3:0]是频率
     WriteReg(REG_ACCEL_CONFIG0, (a_fsr << 5) | a_odr);
-    // Gyro:  bit[3:0] ODR, bit[7:5] FSR
+    // GYRO_CONFIG0:  bit[7:5]是量程, bit[3:0]是频率
     WriteReg(REG_GYRO_CONFIG0,  (g_fsr << 5) | g_odr);
 
-    // 更新转换因子
-    float acc_scales[] = {16.0f, 8.0f, 4.0f, 2.0f};
-    float gyr_scales[] = {2000.0f, 1000.0f, 500.0f, 250.0f, 125.0f, 62.5f, 31.25f, 15.625f};
-    acc_res = acc_scales[a_fsr] / 32768.0f;
-    gyr_res = gyr_scales[g_fsr] / 32768.0f;
+    // 2. 自动更新物理量转换系数 (LSB to Physical Unit)
+    // 原理：ICM42688 的 ADC 是 16 位的，范围 -32768 到 32767
+
+    // 加速度计计算：16G/(2^fsr) / 32768
+    // 当 a_fsr = ACCEL_FS_16G (0) 时，16/1/32768
+    // 当 a_fsr = ACCEL_FS_2G  (3) 时，16/8/32768 = 2/32768
+    acc_res = (16.0f / (float)(1 << a_fsr)) / 32768.0f;
+
+    // 陀螺仪计算：2000DPS/(2^fsr) / 32768
+    // 当 g_fsr = GYRO_FS_2000DPS (0) 时，2000/1/32768
+    // 当 g_fsr = GYRO_FS_125DPS  (4) 时，2000/16/32768 = 125/32768
+    gyr_res = (2000.0f / (float)(1 << g_fsr)) / 32768.0f;
 }
 
 /**
@@ -100,8 +109,19 @@ uint8_t ICM42688_IsDataReady(void) {
      return (ReadReg(REG_INT_STATUS) & 0x08);
 }
 
-void ICM42688_Update(ICM42688_t *dev) {
+/**
+ * @brief 读取并转换 ICM42688 数据
+ * @param gyro 输出数组，存放 X, Y, Z 轴陀螺仪数据 (dps)
+ * @param accel 输出数组，存放 X, Y, Z 轴加速度数据 (g)
+ * @param temperature 输出指针，存放温度数据 (Celsius)
+ */
+void ICM42688_read(float gyro[3], float accel[3], float *temperature)
+{
     uint8_t buf[14];
+    int16_t raw_temp;
+
+    // 1. 发送寄存器首地址 (温度寄存器地址) 并读取 14 字节连续数据
+    // 数据顺序: Temp_H, Temp_L, Accel_X_H, Accel_X_L, ..., Gyro_Z_L
     uint8_t addr = (REG_TEMP_DATA1 & 0xFF) | 0x80;
 
     ICM42688P_CS(0);
@@ -109,19 +129,18 @@ void ICM42688_Update(ICM42688_t *dev) {
     HAL_SPI_Receive(ICM_SPI_HANDLE, buf, 14, 10);
     ICM42688P_CS(1);
 
-    // 大端转小端并赋值
-    dev->raw.temp   = (int16_t)((buf[0] << 8) | buf[1]);
-    dev->raw.acc[0] = (int16_t)((buf[2] << 8) | buf[3]);
-    dev->raw.acc[1] = (int16_t)((buf[4] << 8) | buf[5]);
-    dev->raw.acc[2] = (int16_t)((buf[6] << 8) | buf[7]);
-    dev->raw.gyr[0] = (int16_t)((buf[8] << 8) | buf[9]);
-    dev->raw.gyr[1] = (int16_t)((buf[10] << 8) | buf[11]);
-    dev->raw.gyr[2] = (int16_t)((buf[12] << 8) | buf[13]);
+    // 2. 处理加速度数据 (buf[2]~buf[7])
+    // ICM42688 是 Big-Endian: MSB 在前
+    accel[0] = (int16_t)((buf[2] << 8) | buf[3]) * acc_res;
+    accel[1] = (int16_t)((buf[4] << 8) | buf[5]) * acc_res;
+    accel[2] = (int16_t)((buf[6] << 8) | buf[7]) * acc_res;
 
-    // 转换为物理单位
-    for(int i=0; i<3; i++) {
-        dev->acc_g[i]   = dev->raw.acc[i] * acc_res;
-        dev->gyr_dps[i] = dev->raw.gyr[i] * gyr_res;
-    }
-    dev->temp_c = (dev->raw.temp / 132.48f) + 25.0f;
+    // 3. 处理陀螺仪数据 (buf[8]~buf[13])
+    gyro[0] = (int16_t)((buf[8] << 8) | buf[9])   * gyr_res;
+    gyro[1] = (int16_t)((buf[10] << 8) | buf[11]) * gyr_res;
+    gyro[2] = (int16_t)((buf[12] << 8) | buf[13]) * gyr_res;
+
+    // 4. 处理温度数据 (buf[0]~buf[1])
+    raw_temp = (int16_t)((buf[0] << 8) | buf[1]);
+    *temperature = (raw_temp / 132.48f) + 25.0f;
 }

@@ -114,9 +114,9 @@ void WS2812_RainbowCycle(uint8_t speed) {
     uint8_t r, g, b;
 
     // 我们只处理前 4 个 LED
-    for (int i = 0; i < 4; i++) {
-        // 每个灯的色调偏移 255/4，形成颜色差，从而产生“流水”感
-        HSV_To_RGB(j + (i * 64), 255, 255, &r, &g, &b);
+    for (int i = 0; i < MAX_LED; i++) {
+        // 每个灯的色调偏移 255/MAX_LED
+        HSV_To_RGB(j + (i * 64), 255, 50, &r, &g, &b);
         WS2812_SetPixel(i, r, g, b); //
     }
 

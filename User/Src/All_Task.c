@@ -4,15 +4,27 @@
 #include "All_Task.h"
 
 #include <stdint.h>
-float a=0;
 
-ICM42688_t imu;
+#include "BSP_DWT.h"
+#include "VOFA.h"
+// 记录起始计数
+float dt_s;
+float run_time_s;
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4) {
-        a+=0.001;
-        if (ICM42688_IsDataReady()) {
-            ICM42688_Update(&imu);
-        }
+        run_time_s = DWT_GetTimeline_s();
+        uint32_t cnt_last = DWT->CYCCNT;
+            ICM42688_read(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
+        IMU_Temp_Control_Task();
+
+        VOFA_justfloat(IMU_Data.gyro[0],
+            IMU_Data.gyro[1],
+            IMU_Data.gyro[2],
+            IMU_Data.gyro_correct[0],
+            IMU_Data.gyro_correct[1],
+            IMU_Data.gyro_correct[2],IMU_Data.temp,40,0,0);
+        dt_s = DWT_GetDeltaT(&cnt_last);
         //DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
     }
 }
@@ -108,26 +120,27 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 }
 
 void All_Init() {
+    DWT_Init(170);
     /* 清除串口错误标志 */
+    HAL_DMA_DeInit(&hdma_usart3_rx);
+    HAL_DMA_Init(&hdma_usart3_rx);
+    HAL_UART_DMAStop(&huart3);
     __HAL_UART_CLEAR_OREFLAG(&huart3);
     __HAL_UART_CLEAR_FEFLAG(&huart3);
     __HAL_UART_CLEAR_NEFLAG(&huart3);
     __HAL_UART_CLEAR_PEFLAG(&huart3);
-
     volatile uint32_t tmp = huart3.Instance->RDR;
     (void)tmp;
-
-    /* 关闭 DMA 半传中断（DBUS 不需要） */
-    __HAL_DMA_DISABLE_IT(huart3.hdmarx, DMA_IT_HT);
-
-    /* 启动 DMA + IDLE */
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart3,DBUS_RX_DATA,18);
+    __HAL_DMA_DISABLE_IT(huart3.hdmarx, DMA_IT_HT);//关闭 DMA 半传中断
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart3,DBUS_RX_DATA,18);//启动 DMA + IDLE
     FDCAN1_Config();
     FDCAN2_Config();
     FDCAN3_Config();
-    HAL_TIM_Base_Start_IT(&htim4);
     WS2812_Init();
     if (ICM42688_Init() != 0) {
         Error_Handler();
     }
+    IMU_Gyro_Calib_Initiate();
+    HAL_TIM_Base_Start_IT(&htim4);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 }
