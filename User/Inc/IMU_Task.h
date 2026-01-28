@@ -9,11 +9,11 @@
 #include "BSP_ICM42688P.h"
 #include "TIM.h"
 #include "controller.h"
+#include "All_Task.h"
 
 typedef enum
 {
     TEMP_INIT = 0,   // 温控状态初始化，初始化变量、清零 PID、启动加热相关外设
-    TEMP_PREHEAT,    // 预热阶段,以固定功率加热，使温度快速接近目标值
     TEMP_PID_CTRL,   // PID 控制加热阶段
     TEMP_STABLE,     // 温度稳定状态
     GYRO_CALIB,      // 陀螺仪校准阶段

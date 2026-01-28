@@ -4,7 +4,7 @@
 #include "ws2812.h"
 #include <string.h>
 #include "tim.h"
-
+#include "BSP_DWT.h"
 // 增加 50 个 0 作为复位信号
 #define PWM_BUF_LEN (MAX_LED * 24 + WS2812_RESET_LEN)
 
@@ -50,6 +50,48 @@ void WS2812_SetAll(uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
+#include <math.h>
+
+/**
+ * @brief  指定单灯呼吸逻辑（只负责计算亮度并填入 PWM 缓冲区）
+ * @param  index:  LED 索引
+ * @param  period: 呼吸周期（秒）
+ */
+void WS2812_UpdateBreathing(uint16_t index, float period) {
+    if (index >= MAX_LED || period <= 0.0f) return;
+
+    // 1. 获取当前时间（DWT 高精度时间轴）
+    float currentTime = DWT_GetTimeline_s();
+
+    // 2. 计算当前亮度的比例因子 (0.0 ~ 1.0)
+    // 使用 cosf 偏移可以从最亮开始，或者 sinf 从灭开始
+    float factor = (sinf(2.0f * 3.1415926f * currentTime / period) + 1.0f) * 0.5f;
+
+    // 3. 从 LED_Data 获取基准颜色，并应用呼吸因子和全局亮度
+    // 这里直接计算出该灯的临时 GRB 值
+    uint8_t r = (uint8_t)(LED_Data[index].R * factor);
+    uint8_t g = (uint8_t)(LED_Data[index].G * factor);
+    uint8_t b = (uint8_t)(LED_Data[index].B * factor);
+
+    // 4. 将计算后的颜色实时填入 PWM_Buffer 对应的位置
+    // 每一个 LED 占用 24 个 uint16_t
+    uint32_t pos = index * 24;
+    uint32_t color = ((uint32_t)g << 16) | ((uint32_t)r << 8) | (uint32_t)b;
+
+    for (int8_t j = 23; j >= 0; j--) {
+        PWM_Buffer[pos++] = (color & (1 << j)) ? WS2812_PWM_HIGH : WS2812_PWM_LOW;
+    }
+}
+
+/**
+ * @brief  触发 DMA 发送（修改版的 Send，不再重新计算所有颜色，只负责发出去）
+ * @note   在调用此函数前，确保已经通过 UpdateBreathing 或普通转换填充了 PWM_Buffer
+ */
+void WS2812_Submit(void) {
+    if (isSending) return;
+    isSending = 1;
+    HAL_TIM_PWM_Start_DMA(&WS2812_TIM_HANDLE, WS2812_TIM_CHANNEL, (uint32_t *)PWM_Buffer, PWM_BUF_LEN);
+}
 
 void WS2812_Send(void) {
     if (isSending) return;

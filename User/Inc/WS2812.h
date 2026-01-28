@@ -22,11 +22,14 @@ typedef struct {
     uint8_t B;
 } WS2812_Color_t;
 
+
 void WS2812_Init(void);
 void WS2812_SetPixel(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
 void WS2812_SetAll(uint8_t r, uint8_t g, uint8_t b);
 void WS2812_SetBrightness(uint8_t brightness); // 0-255
 void WS2812_Clear(void);
+void WS2812_UpdateBreathing(uint16_t index, float period);
+void WS2812_Submit(void);
 void WS2812_Send(void);
 void WS2812_RainbowCycle(uint8_t speed);
 void WS2812_SingleRunningLight(uint8_t r, uint8_t g, uint8_t b, uint16_t delay_ms);

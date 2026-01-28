@@ -143,4 +143,8 @@ void All_Init() {
     IMU_Gyro_Calib_Initiate();
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
+    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2,5000);
+    HAL_Delay(500);
+    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 0);
 }

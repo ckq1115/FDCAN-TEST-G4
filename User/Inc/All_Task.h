@@ -9,8 +9,6 @@
 #include "main.h"
 #include "DBUS.h"
 #include "Motor.h"
-#include "All_Task.h"
-#include "DBUS.h"
 #include "BSP_ICM42688P.h"
 #include "tim.h"
 #include "usart.h"
