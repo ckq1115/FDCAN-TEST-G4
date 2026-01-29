@@ -51,5 +51,5 @@ void IMU_Temp_PID_Init(void);
 void IMU_Temp_Control_Task(void);
 void IMU_Gyro_Zero_Calibration_Task(void);
 void IMU_Gyro_Calib_Initiate(void);
-float Heater_PWM_Limit(float target_pwm);
+
 #endif //FDCAN_TEST_G4_IMU_TASK_H

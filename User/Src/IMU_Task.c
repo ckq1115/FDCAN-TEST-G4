@@ -9,8 +9,9 @@
 #define TEMP_STABLE_TIME_MS    2000      // 稳定 2s
 
 /*==================== PID参数 ====================*/
-static float pid_temp[3] = {90.0f, 0.155f, 180.0f};
-
+static float pid_temp[3] = {80.0f, 0.155f, 180.0f};
+//static float pid_temp[3] = {40.0f, 0.155f, 0.0f};
+static float Fuzzy_pid_temp[3] = {0.0f, 0.0f, 0.0f};
 /*==================== 加热PWM限制 ====================*/
 #define HEATER_PWM_MAX         1000.0f
 #define HEATER_PWM_RAMP_UP     20.0f
@@ -46,30 +47,14 @@ void Set_Heater_PWM(float pwm)
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, heater_ccr);
 }
 
-float Heater_PWM_Limit(float target_pwm)
-{
-    if (target_pwm > heater_pwm_limited)
-    {
-        heater_pwm_limited += HEATER_PWM_RAMP_UP;
-        if (heater_pwm_limited > target_pwm)
-            heater_pwm_limited = target_pwm;
-    }
-    else
-    {
-        heater_pwm_limited -= HEATER_PWM_RAMP_DN;
-        if (heater_pwm_limited < target_pwm)
-            heater_pwm_limited = target_pwm;
-    }
-
-    return heater_pwm_limited;
-}
-
+FuzzyRule_t fuzzy_rule_temp;
 void IMU_Temp_PID_Init(void)
 {
+
     PID_Init(&imu_temp,
              1000.0f,     // MaxOut
              600.0f,      // IntegralLimit
-             pid_temp,
+             Fuzzy_pid_temp,
              6.0f,       // CoefA
              0.5f,        // CoefB
              0.5f,        // Output LPF
@@ -83,18 +68,31 @@ void IMU_Temp_PID_Init(void)
              OutputFilter);
 }
 
+float pwm;
 void IMU_Temp_Control_Task(void)
 {
     float temp = IMU_Data.temp;
-    float pwm;
 
     /*==================== PID周期计算 ====================*/
     if (imu_ctrl_state != TEMP_INIT)
     {
         if (++imu_pid_cnt >= 10)   // 10ms
         {
-            pwm = PID_Calculate(&imu_temp, temp, IMU_TARGET_TEMP);
-            pwm = Heater_PWM_Limit(pwm);
+                IMU_Temp_PID_Init();
+                Fuzzy_Rule_Init(&fuzzy_rule_temp,NULL,NULL,NULL,6.0f,0.015f,10.0f,
+                    3.5f,   // eStep
+                    0.85f   // ecStep
+                    );
+                Fuzzy_Rule_Implementation(&fuzzy_rule_temp, imu_temp.Measure, imu_temp.Ref);
+                pid_temp[0] = pid_temp[0] + fuzzy_rule_temp.KpFuzzy*fuzzy_rule_temp.KpRatio;
+                pid_temp[1] = pid_temp[1] + fuzzy_rule_temp.KiFuzzy*fuzzy_rule_temp.KiRatio;
+                pid_temp[2] = pid_temp[2] + fuzzy_rule_temp.KdFuzzy*fuzzy_rule_temp.KdRatio;
+                PID_set(&imu_temp, pid_temp);
+                pwm = PID_Calculate(&imu_temp, temp, IMU_TARGET_TEMP);
+                pid_temp[0] = 65.0f;
+                pid_temp[1] = 0.12f;
+                pid_temp[2] = 200.0f;
+                //pwm = Heater_PWM_Limit(pwm);
             Set_Heater_PWM(pwm);
             imu_pid_cnt = 0;
         }
@@ -120,7 +118,7 @@ void IMU_Temp_Control_Task(void)
             break;
 
         case TEMP_STABLE:
-            WS2812_SetPixel(0, 0, 0, 200); // 蓝色表示温度稳定阶段
+            WS2812_SetPixel(0, 200, 0, 200); // 紫色表示温度稳定阶段
             if (fabsf(temp - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
             {
                 if (HAL_GetTick() - temp_stable_tick > TEMP_STABLE_TIME_MS)
@@ -136,7 +134,7 @@ void IMU_Temp_Control_Task(void)
             break;
 
         case GYRO_CALIB:
-            WS2812_SetPixel(0, 200, 0, 200); // 紫色表示陀螺仪校准阶段
+            WS2812_SetPixel(0, 0, 0, 200); // 蓝色表示陀螺仪校准阶段
             IMU_Gyro_Zero_Calibration_Task();
             if (imu_ctrl_flag.gyro_calib_done)
             {
