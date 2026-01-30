@@ -11,7 +11,7 @@
 float dt_s;
 float run_time_s;
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4) {
         run_time_s = DWT_GetTimeline_s();
         uint32_t cnt_last = DWT->CYCCNT;

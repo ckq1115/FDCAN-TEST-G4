@@ -1,64 +1,79 @@
-//
-// Created by CaoKangqi on 2026/1/27.
-//
+/**
+ * @file    IMU_Task.c
+ * @author  CaoKangqi (Optimized version)
+ * @date    2026/01/27
+ * @brief   IMU温控与校准任务，采用模糊PID控制与状态机管理
+ */
+
 #include "IMU_Task.h"
+#include <math.h>
 
-/*==================== 温控参数 ====================*/
-#define IMU_TARGET_TEMP        40.0f     // 目标温度
-#define TEMP_STABLE_ERR        0.3f      // ±0.3℃
-#define TEMP_STABLE_TIME_MS    2000      // 稳定 2s
+/*==================== 温控与校准常量 ====================*/
+#define IMU_TARGET_TEMP        40.0f     // 目标温度 (℃)
+#define TEMP_STABLE_ERR        0.3f      // 稳定判据误差 (±0.3℃)
+#define TEMP_STABLE_TIME_MS    2000      // 稳定持续时间 (ms)
+#define GYRO_CALIB_SAMPLES     2000      // 陀螺仪采样样本数
 
-/*==================== PID参数 ====================*/
-static float pid_temp[3] = {80.0f, 0.155f, 180.0f};
-//static float pid_temp[3] = {40.0f, 0.155f, 0.0f};
-static float Fuzzy_pid_temp[3] = {0.0f, 0.0f, 0.0f};
-/*==================== 加热PWM限制 ====================*/
+/*==================== PID 参数管理 ====================*/
+typedef struct {
+    float kp;
+    float ki;
+    float kd;
+} PID_Params_t;
+
+// 默认基准参数（作为模糊控制的基座）
+static const PID_Params_t base_pid = {70.0f, 0.12f, 100.0f};
+// 实时运行参数
+static PID_Params_t current_pid;
+
+/*==================== 硬件控制限制 ====================*/
 #define HEATER_PWM_MAX         1000.0f
-#define HEATER_PWM_RAMP_UP     20.0f
-#define HEATER_PWM_RAMP_DN     30.0f
 
-/*==================== 陀螺仪校准 ====================*/
-#define GYRO_CALIB_SAMPLES     2000
-
-/*==================== 控制对象 ====================*/
+/*==================== 全局对象与状态 ====================*/
 PID_t imu_temp;
 IMU_Data_t IMU_Data;
+FuzzyRule_t fuzzy_rule_temp;
 
-/*==================== 状态与标志 ====================*/
 IMU_CTRL_STATE_e imu_ctrl_state = TEMP_INIT;
 IMU_CTRL_FLAG_t  imu_ctrl_flag  = {0};
 
-/*==================== 内部计数 ====================*/
+/*==================== 内部私有变量 ====================*/
 static uint32_t temp_stable_tick = 0;
 static uint16_t imu_pid_cnt      = 0;
 static uint16_t gyro_calib_cnt   = 0;
+static float    heater_pwm_out   = 0;
 
-/*==================== PWM控制 ====================*/
-static float heater_pwm_limited = 0;
-static uint32_t heater_ccr = 0;
+/*==================== 硬件底层接口 ====================*/
 
+/**
+ * @brief 设置加热片PWM占空比
+ */
 void Set_Heater_PWM(float pwm)
 {
-    /* 限幅 */
+    // 限幅保护
     if (pwm < 0.0f) pwm = 0.0f;
     if (pwm > HEATER_PWM_MAX) pwm = HEATER_PWM_MAX;
 
-    heater_ccr = (uint32_t)pwm;
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, heater_ccr);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (uint32_t)pwm);
 }
 
-FuzzyRule_t fuzzy_rule_temp;
-void IMU_Temp_PID_Init(void)
-{
+/*==================== 初始化函数 ====================*/
 
+/**
+ * @brief 初始化PID结构体与模糊规则
+ * @note  仅在系统启动或状态机复位时调用一次
+ */
+void IMU_Temp_Control_Init(void)
+{
+    // 1. 初始化PID控制器基础配置
     PID_Init(&imu_temp,
-             1000.0f,     // MaxOut
-             600.0f,      // IntegralLimit
-             Fuzzy_pid_temp,
-             6.0f,       // CoefA
-             0.5f,        // CoefB
-             0.5f,        // Output LPF
-             0.15f,       // D LPF
+             1000.0f,               // MaxOut
+             600.0f,                // IntegralLimit
+             (float*)&base_pid,     // 指向初始参数
+             7.5f,                  // CoefA
+             1.0f,                  // CoefB
+             0.0f,                  // Output LPF
+             0.0f,                 // D LPF
              0,
              Trapezoid_Intergral |
              ChangingIntegrationRate |
@@ -66,50 +81,70 @@ void IMU_Temp_PID_Init(void)
              DerivativeFilter |
              Integral_Limit |
              OutputFilter);
+
+    // 2. 初始化模糊规则参数
+    Fuzzy_Rule_Init(&fuzzy_rule_temp, NULL, NULL, NULL,
+                    6.0f, 0.015f, 10.0f, // Kp, Ki, Kd Ratios
+                    3.5f,                // eStep
+                    0.85f                // ecStep
+                    );
+
+    current_pid = base_pid;
 }
 
-float pwm;
+/*==================== 核心任务逻辑 ====================*/
+
+/**
+ * @brief IMU温度控制与状态管理主任务
+ * @note  建议调用频率：1ms (内部自带10ms分频)
+ */
 void IMU_Temp_Control_Task(void)
 {
-    float temp = IMU_Data.temp;
+    float current_t = IMU_Data.temp;
 
-    /*==================== PID周期计算 ====================*/
+    /*-------------------- 1. 高频PID计算 (10ms) --------------------*/
     if (imu_ctrl_state != TEMP_INIT)
     {
-        if (++imu_pid_cnt >= 10)   // 10ms
+        if (++imu_pid_cnt >= 10)
         {
-                IMU_Temp_PID_Init();
-                Fuzzy_Rule_Init(&fuzzy_rule_temp,NULL,NULL,NULL,6.0f,0.015f,10.0f,
-                    3.5f,   // eStep
-                    0.85f   // ecStep
-                    );
-                Fuzzy_Rule_Implementation(&fuzzy_rule_temp, imu_temp.Measure, imu_temp.Ref);
-                pid_temp[0] = pid_temp[0] + fuzzy_rule_temp.KpFuzzy*fuzzy_rule_temp.KpRatio;
-                pid_temp[1] = pid_temp[1] + fuzzy_rule_temp.KiFuzzy*fuzzy_rule_temp.KiRatio;
-                pid_temp[2] = pid_temp[2] + fuzzy_rule_temp.KdFuzzy*fuzzy_rule_temp.KdRatio;
-                PID_set(&imu_temp, pid_temp);
-                pwm = PID_Calculate(&imu_temp, temp, IMU_TARGET_TEMP);
-                pid_temp[0] = 65.0f;
-                pid_temp[1] = 0.12f;
-                pid_temp[2] = 200.0f;
-                //pwm = Heater_PWM_Limit(pwm);
-            Set_Heater_PWM(pwm);
-            imu_pid_cnt = 0;
+            if (current_t <= IMU_TARGET_TEMP-10.0f)
+            {
+                // 低于目标温度10度时，直接全功率加热，避免长时间低功率加热无效
+                heater_pwm_out = HEATER_PWM_MAX;
+                Set_Heater_PWM(heater_pwm_out);
+                imu_pid_cnt = 0;
+                return;
+            }
+            else {
+                // 更新模糊推理
+                Fuzzy_Rule_Implementation(&fuzzy_rule_temp, current_t, IMU_TARGET_TEMP);
+
+                // 在基准参数上叠加模糊修正量
+                current_pid.kp = base_pid.kp + (fuzzy_rule_temp.KpFuzzy * fuzzy_rule_temp.KpRatio);
+                current_pid.ki = base_pid.ki + (fuzzy_rule_temp.KiFuzzy * fuzzy_rule_temp.KiRatio);
+                current_pid.kd = base_pid.kd + (fuzzy_rule_temp.KdFuzzy * fuzzy_rule_temp.KdRatio);
+
+                // 应用新参数并计算输出
+                PID_set(&imu_temp, (float*)&current_pid);
+                heater_pwm_out = PID_Calculate(&imu_temp, current_t, IMU_TARGET_TEMP);
+
+                Set_Heater_PWM(heater_pwm_out);
+                imu_pid_cnt = 0;
+                }
         }
     }
 
-    /*==================== 状态机 ====================*/
+    /*-------------------- 2. 控制状态机 --------------------*/
     switch (imu_ctrl_state)
     {
         case TEMP_INIT:
-
-            IMU_Temp_PID_Init();
+            IMU_Temp_Control_Init();
             imu_ctrl_state = TEMP_PID_CTRL;
             break;
 
         case TEMP_PID_CTRL:
-            WS2812_SetPixel(0, 200, 40, 0);  // 橙色表示预热阶段
-            if (fabsf(temp - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
+            WS2812_SetPixel(0, 200, 40, 0);  // 橙色：加热中
+            if (fabsf(current_t - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
             {
                 imu_ctrl_flag.temp_reached = 1;
                 temp_stable_tick = HAL_GetTick();
@@ -118,8 +153,8 @@ void IMU_Temp_Control_Task(void)
             break;
 
         case TEMP_STABLE:
-            WS2812_SetPixel(0, 200, 0, 200); // 紫色表示温度稳定阶段
-            if (fabsf(temp - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
+            WS2812_SetPixel(0, 200, 0, 200); // 紫色：恒温稳定判断
+            if (fabsf(current_t - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
             {
                 if (HAL_GetTick() - temp_stable_tick > TEMP_STABLE_TIME_MS)
                 {
@@ -129,12 +164,13 @@ void IMU_Temp_Control_Task(void)
             }
             else
             {
+                // 温度波动过大，退回PID控制阶段重新计时
                 imu_ctrl_state = TEMP_PID_CTRL;
             }
             break;
 
         case GYRO_CALIB:
-            WS2812_SetPixel(0, 0, 0, 200); // 蓝色表示陀螺仪校准阶段
+            WS2812_SetPixel(0, 0, 0, 200);   // 蓝色：校准中
             IMU_Gyro_Zero_Calibration_Task();
             if (imu_ctrl_flag.gyro_calib_done)
             {
@@ -143,25 +179,30 @@ void IMU_Temp_Control_Task(void)
             break;
 
         case FUSION_RUN:
-            WS2812_SetPixel(0, 0, 60, 0); // 绿色表示融合算法正常运行阶段
+            WS2812_SetPixel(0, 0, 60, 0);    // 绿色：正常运行
+            // 减去静态零偏
             IMU_Data.gyro[0] -= IMU_Data.gyro_correct[0];
             IMU_Data.gyro[1] -= IMU_Data.gyro_correct[1];
             IMU_Data.gyro[2] -= IMU_Data.gyro_correct[2];
+
             imu_ctrl_flag.fusion_enabled = 1;
             break;
 
         default:
             break;
     }
+
+    // 更新灯效显示
     WS2812_UpdateBreathing(0, 2.0f);
     WS2812_Submit();
 }
 
-
+/**
+ * @brief 陀螺仪静态零偏校准任务
+ */
 void IMU_Gyro_Zero_Calibration_Task(void)
 {
-    if (imu_ctrl_flag.gyro_calib_done)
-        return;
+    if (imu_ctrl_flag.gyro_calib_done) return;
 
     if (ICM42688_IsDataReady())
     {
@@ -173,21 +214,21 @@ void IMU_Gyro_Zero_Calibration_Task(void)
 
     if (gyro_calib_cnt >= GYRO_CALIB_SAMPLES)
     {
-        IMU_Data.gyro_correct[0] /= GYRO_CALIB_SAMPLES;
-        IMU_Data.gyro_correct[1] /= GYRO_CALIB_SAMPLES;
-        IMU_Data.gyro_correct[2] /= GYRO_CALIB_SAMPLES;
+        IMU_Data.gyro_correct[0] /= (float)GYRO_CALIB_SAMPLES;
+        IMU_Data.gyro_correct[1] /= (float)GYRO_CALIB_SAMPLES;
+        IMU_Data.gyro_correct[2] /= (float)GYRO_CALIB_SAMPLES;
 
         gyro_calib_cnt = 0;
         imu_ctrl_flag.gyro_calib_done = 1;
     }
 }
 
+/**
+ * @brief 外部触发重新校准
+ */
 void IMU_Gyro_Calib_Initiate(void)
 {
     imu_ctrl_flag.gyro_calib_done = 0;
     gyro_calib_cnt = 0;
-
-    IMU_Data.gyro_correct[0] = 0.0f;
-    IMU_Data.gyro_correct[1] = 0.0f;
-    IMU_Data.gyro_correct[2] = 0.0f;
+    for(int i=0; i<3; i++) IMU_Data.gyro_correct[i] = 0.0f;
 }

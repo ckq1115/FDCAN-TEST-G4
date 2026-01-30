@@ -36,5 +36,5 @@ typedef struct
 extern Speed_Solve Omni;
 void speed_solve(void);
 void All_Init(void);
-
+void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 #endif //FDCAN_TEST_G4_ALL_TASK_H
