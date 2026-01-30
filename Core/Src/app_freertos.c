@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "All_Task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,7 +51,7 @@
 osThreadId_t IMUTaskHandle;
 const osThreadAttr_t IMUTask_attributes = {
   .name = "IMUTask",
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityHigh,
   .stack_size = 512 * 4
 };
 
@@ -114,9 +114,11 @@ void MX_FREERTOS_Init(void) {
 __weak void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+
   /* Infinite loop */
   for(;;)
   {
+
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */

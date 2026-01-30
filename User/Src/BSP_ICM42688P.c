@@ -80,15 +80,11 @@ void ICM42688_SetFormat(ODR_t a_odr, AccelFS_t a_fsr, ODR_t g_odr, GyroFS_t g_fs
     // 2. 自动更新物理量转换系数 (LSB to Physical Unit)
     // 原理：ICM42688 的 ADC 是 16 位的，范围 -32768 到 32767
 
-    // 加速度计计算：16G/(2^fsr) / 32768
-    // 当 a_fsr = ACCEL_FS_16G (0) 时，16/1/32768
-    // 当 a_fsr = ACCEL_FS_2G  (3) 时，16/8/32768 = 2/32768
-    acc_res = (16.0f / (float)(1 << a_fsr)) / 32768.0f;
+    acc_res = (16.0f / (float)(1 << a_fsr)) / 32768.0f * 9.80665f;
 
-    // 陀螺仪计算：2000DPS/(2^fsr) / 32768
-    // 当 g_fsr = GYRO_FS_2000DPS (0) 时，2000/1/32768
-    // 当 g_fsr = GYRO_FS_125DPS  (4) 时，2000/16/32768 = 125/32768
-    gyr_res = (2000.0f / (float)(1 << g_fsr)) / 32768.0f;
+    // 2. 陀螺仪转换系数：dps -> rad/s
+    // 增加 0.01745329f (即 PI/180) 乘子
+    gyr_res = (2000.0f / (float)(1 << g_fsr)) / 32768.0f * 0.01745329f;
 }
 
 /**

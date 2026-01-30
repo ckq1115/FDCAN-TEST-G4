@@ -6,27 +6,44 @@
 #include <stdint.h>
 
 #include "BSP_DWT.h"
-#include "VOFA.h"
+
 // 记录起始计数
 float dt_s;
 float run_time_s;
 
 void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    static uint32_t last_trigger_cnt = 0;
+    float actual_period;
     if (htim->Instance == TIM4) {
-        run_time_s = DWT_GetTimeline_s();
-        uint32_t cnt_last = DWT->CYCCNT;
-            ICM42688_read(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
-        IMU_Temp_Control_Task();
-
-        VOFA_justfloat(IMU_Data.gyro[0],
-            IMU_Data.gyro[1],
-            IMU_Data.gyro[2],
-            IMU_Data.gyro_correct[0],
-            IMU_Data.gyro_correct[1],
-            IMU_Data.gyro_correct[2],IMU_Data.temp,40,0,0);
-        dt_s = DWT_GetDeltaT(&cnt_last);
+        actual_period = DWT_GetDeltaT(&last_trigger_cnt);
         //DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
     }
+}
+
+
+void StartDefaultTask(void *argument)
+{
+    /* USER CODE BEGIN StartDefaultTask */
+    uint32_t last_wake_time = DWT->CYCCNT; // 初始化记录时间戳
+    float task_period = 0;
+    /* Infinite loop */
+    for(;;)
+    {
+        task_period = DWT_GetDeltaT(&last_wake_time);
+        run_time_s = DWT_GetTimeline_s();
+        //uint32_t cnt_last = DWT->CYCCNT;
+        ICM42688_read(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
+        IMU_Temp_Control_Task();
+        VOFA_justfloat(IMU_Data.accel[0],
+            IMU_Data.accel[1],
+            IMU_Data.accel[2],
+            IMU_Data.yaw,
+            IMU_Data.pitch,
+            IMU_Data.roll,run_time_s,QEKF_INS.ChiSquare_Data[0],task_period,0);
+        //dt_s = DWT_GetDeltaT(&cnt_last);
+        osDelay(1);
+    }
+    /* USER CODE END StartDefaultTask */
 }
 
 uint8_t DBUS_RX_DATA[18];//__attribute__((section(".ARM.__at_0x24000000")));
@@ -144,7 +161,4 @@ void All_Init() {
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
-    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2,5000);
-    HAL_Delay(500);
-    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 0);
 }

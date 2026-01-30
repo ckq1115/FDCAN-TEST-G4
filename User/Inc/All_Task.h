@@ -15,7 +15,9 @@
 #include "WS2812.h"
 #include "controller.h"
 #include "IMU_Task.h"
-
+#include "QuaternionEKF.h"
+#include "cmsis_os2.h"
+#include "VOFA.h"
 #define off_line 0
 #define on_Line  1
 

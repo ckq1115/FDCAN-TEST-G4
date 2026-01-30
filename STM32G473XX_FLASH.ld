@@ -63,22 +63,27 @@ FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM);    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x200;      /* required amount of heap  */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_Min_Heap_Size = 0x1000;      /* required amount of heap  */
+_Min_Stack_Size = 0x2000; /* required amount of stack */
 
 /* Define output sections */
 SECTIONS
 {
   /* The startup code goes first into FLASH */
+  /* 在 SECTIONS 内部 */
   .ccmram :
-    {
-      . = ALIGN(4);
-      _sccmram = .;       /* 段起始地址 */
-      *(.ccmram)
-      *(.ccmram*)
-      . = ALIGN(4);
-      _eccmram = .;       /* 段结束地址 */
-    } >CCMRAM AT> FLASH
+  {
+    . = ALIGN(4);
+    _sccmram = .;       /* CCMRAM 起始地址 */
+    *(.ccmram)
+    *(.ccmram*)
+
+    . = ALIGN(4);
+    _eccmram = .;       /* CCMRAM 结束地址 */
+  } >CCMRAM AT> FLASH
+
+  /* 关键符号定义：数据在 FLASH 中的加载地址 */
+  _siccmram = LOADADDR(.ccmram);
   .isr_vector :
   {
     . = ALIGN(4);

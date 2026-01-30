@@ -29,7 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "All_Task.h"
-#include "WS2812.h"
+#include "arm_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -121,6 +121,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM20_Init();
   /* USER CODE BEGIN 2 */
+  CCMRAM_Init(); // 初始化 CCMRAM 数据段
   All_Init();
   /* USER CODE END 2 */
 
@@ -211,9 +212,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     HAL_IncTick();
   }
-  MY_TIM_PeriodElapsedCallback( htim);
   /* USER CODE BEGIN Callback 1 */
-
+  MY_TIM_PeriodElapsedCallback(htim);
   /* USER CODE END Callback 1 */
 }
 

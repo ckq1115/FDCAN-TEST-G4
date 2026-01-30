@@ -27,6 +27,8 @@ set(CPU_FLAGS
         -mfloat-abi=hard
 )
 
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/DSP/Lib/GCC)
+
 # 3. 编译选项
 add_compile_options(
         ${CPU_FLAGS}
@@ -65,7 +67,14 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Inc/CKQ_MATH.h
         User/Src/CKQ_MATH.c
         User/Src/IMU_Task.c
-        User/Inc/IMU_Task.h)
+        User/Inc/IMU_Task.h
+        User/Inc/kalman_filter.h
+        User/Src/kalman_filter.c
+        User/Inc/QuaternionEKF.h
+        User/Src/QuaternionEKF.c
+        User/Inc/user_lib.h
+        User/Src/user_lib.c
+)
 
 # 添加用户源文件 (请根据实际文件增减)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
@@ -87,6 +96,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         Core/Inc/
         User/Inc/
+        # --- 新增 DSP 相关路径 ---
+        Drivers/CMSIS/Include
+        Drivers/CMSIS/DSP/Include
+        Drivers/CMSIS/Device/ST/STM32G4xx/Include
 )
 
 # ------------------------------------------------------------------------------
@@ -94,16 +107,22 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # ------------------------------------------------------------------------------
 add_subdirectory(cmake/stm32cubemx)
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME}
         stm32cubemx
+        # --- 新增 DSP 静态库和数学库 ---
+        arm_cortexM4lf_math
+        m
 )
 
 # ------------------------------------------------------------------------------
-# 7. 宏定义与 CCMRAM 配置
+# [修改] 7. 宏定义 (添加 DSP 所需宏)
 # ------------------------------------------------------------------------------
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
         STM32G473xx
         USE_HAL_DRIVER
+        # --- 新增 DSP 宏 ---
+        ARM_MATH_CM4
+        __FPU_PRESENT=1U
 )
 
 # 移除冗余库依赖（防止某些 GCC 版本链接冲突）

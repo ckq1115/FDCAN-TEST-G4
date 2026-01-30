@@ -23,6 +23,7 @@ typedef struct {
 
 // 默认基准参数（作为模糊控制的基座）
 static const PID_Params_t base_pid = {70.0f, 0.12f, 100.0f};
+
 // 实时运行参数
 static PID_Params_t current_pid;
 
@@ -139,6 +140,8 @@ void IMU_Temp_Control_Task(void)
     {
         case TEMP_INIT:
             IMU_Temp_Control_Init();
+            IMU_QuaternionEKF_Init(10, 0.001f, 10000000, 1, 0.001f,0.1f);
+            //IMU_QuaternionEKF_Init(100, 0.1f, 0.00001, 1, 0.001f,0);
             imu_ctrl_state = TEMP_PID_CTRL;
             break;
 
@@ -160,6 +163,7 @@ void IMU_Temp_Control_Task(void)
                 {
                     imu_ctrl_flag.temp_stable = 1;
                     imu_ctrl_state = GYRO_CALIB;
+                    //imu_ctrl_state = FUSION_RUN;
                 }
             }
             else
@@ -185,6 +189,15 @@ void IMU_Temp_Control_Task(void)
             IMU_Data.gyro[1] -= IMU_Data.gyro_correct[1];
             IMU_Data.gyro[2] -= IMU_Data.gyro_correct[2];
 
+            IMU_QuaternionEKF_Update(
+                IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
+                IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2]);
+            //ekf获取姿态角度函数
+            IMU_Data.pitch= - Get_Pitch();//获得pitch
+            IMU_Data.roll= Get_Roll();//获得roll
+            IMU_Data.yaw= - Get_Yaw();//获得yaw
+            IMU_Data.YawTotalAngle=Get_YawTotalAngle();
+            memcpy(IMU_Data.q, QEKF_INS.q, 16);
             imu_ctrl_flag.fusion_enabled = 1;
             break;
 
@@ -222,6 +235,7 @@ void IMU_Gyro_Zero_Calibration_Task(void)
         imu_ctrl_flag.gyro_calib_done = 1;
     }
 }
+
 
 /**
  * @brief 外部触发重新校准
