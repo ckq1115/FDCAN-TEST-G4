@@ -20,11 +20,17 @@ void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     }
 }
 
-
+ICM42688_Device_t imu;
+ICM_Data_t imu_data;
 void StartDefaultTask(void *argument)
 {
     /* USER CODE BEGIN StartDefaultTask */
-    uint32_t last_wake_time = DWT->CYCCNT; // 初始化记录时间戳
+    /*if (!ESKF_Init(&eskf, 0.001f)) {
+        // 初始化失败，挂起任务
+        vTaskSuspend(NULL);
+    }*/
+    ICM42688_Init(&imu, &hspi2, GPIOB, GPIO_PIN_12);
+    int32_t last_wake_time = DWT->CYCCNT; // 初始化记录时间戳
     float task_period = 0;
     /* Infinite loop */
     for(;;)
@@ -32,14 +38,21 @@ void StartDefaultTask(void *argument)
         task_period = DWT_GetDeltaT(&last_wake_time);
         run_time_s = DWT_GetTimeline_s();
         //uint32_t cnt_last = DWT->CYCCNT;
-        ICM42688_read(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
+        ICM42688_ReadData(&imu, &imu_data);
+        IMU_Data.accel[0] = -imu_data.accel[0];
+        IMU_Data.accel[1] = -imu_data.accel[1];
+        IMU_Data.accel[2] = -imu_data.accel[2];
+        IMU_Data.gyro[0] = -imu_data.gyro[0];
+        IMU_Data.gyro[1] = -imu_data.gyro[1];
+        IMU_Data.gyro[2] = -imu_data.gyro[2];
+        IMU_Data.temp = imu_data.temp;
         IMU_Temp_Control_Task();
         VOFA_justfloat(IMU_Data.accel[0],
             IMU_Data.accel[1],
             IMU_Data.accel[2],
             IMU_Data.yaw,
             IMU_Data.pitch,
-            IMU_Data.roll,run_time_s,QEKF_INS.ChiSquare_Data[0],task_period,0);
+            IMU_Data.roll,run_time_s,IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2]);
         //dt_s = DWT_GetDeltaT(&cnt_last);
         osDelay(1);
     }
@@ -154,9 +167,7 @@ void All_Init() {
     FDCAN2_Config();
     FDCAN3_Config();
     WS2812_Init();
-    if (ICM42688_Init() != 0) {
-        Error_Handler();
-    }
+
     IMU_Gyro_Calib_Initiate();
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);

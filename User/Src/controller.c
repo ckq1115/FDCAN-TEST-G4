@@ -366,3 +366,247 @@ static void f_PID_ErrorHandle(PID_t *pid)
         pid->ERRORHandler.ERRORType = Motor_Blocked;
     }
 }
+
+/*************************** FEEDFORWARD CONTROL *****************************/
+/**
+ * @brief          前馈控制初始化
+ * @param[in]      前馈控制结构体
+ * @param[in]      略
+ * @retval         返回空
+ */
+void Feedforward_Init(
+    Feedforward_t *ffc,
+    float max_out,
+    float *c,
+    float lpf_rc,
+    uint16_t ref_dot_ols_order,
+    uint16_t ref_ddot_ols_order)
+{
+    ffc->MaxOut = max_out;
+
+    // 设置前馈控制器参数 详见前馈控制结构体定义
+    // set parameters of feed-forward controller (see struct definition)
+    if (c != NULL && ffc != NULL)
+    {
+        ffc->c[0] = c[0];
+        ffc->c[1] = c[1];
+        ffc->c[2] = c[2];
+    }
+    else
+    {
+        ffc->c[0] = 0;
+        ffc->c[1] = 0;
+        ffc->c[2] = 0;
+        ffc->MaxOut = 0;
+    }
+
+    //低通滤波参数
+    ffc->LPF_RC = lpf_rc;
+
+    // 最小二乘提取信号微分初始化
+    // differential signal is distilled by OLS
+    ffc->Ref_dot_OLS_Order = ref_dot_ols_order;
+    ffc->Ref_ddot_OLS_Order = ref_ddot_ols_order;
+    if (ref_dot_ols_order > 2)
+        OLS_Init(&ffc->Ref_dot_OLS, ref_dot_ols_order);
+    if (ref_ddot_ols_order > 2)
+        OLS_Init(&ffc->Ref_ddot_OLS, ref_ddot_ols_order);
+
+    ffc->DWT_CNT = 0;
+
+    ffc->Output = 0;
+}
+
+/**
+ * @brief          PID计算
+ * @param[in]      PID结构体
+ * @param[in]      测量值
+ * @param[in]      期望值
+ * @retval         返回空
+ */
+float Feedforward_Calculate(Feedforward_t *ffc, float ref)
+{
+	//求离散后的单位时间
+    uint32_t tmp = ffc->DWT_CNT;
+    ffc->dt = DWT_GetDeltaT(&tmp);
+	//将期望值进行一阶低通滤波
+    ffc->Ref = ref * ffc->dt / (ffc->LPF_RC + ffc->dt) +
+               ffc->Ref * ffc->LPF_RC / (ffc->LPF_RC + ffc->dt);
+    /*公式解析
+    ffc->Ref = ref * ffc->dt / (ffc->LPF_RC + ffc->dt) + ffc->Ref * ffc->LPF_RC / (ffc->LPF_RC + ffc->dt);
+             = ref * (1/(LPF_RC/ffc->dt + 1)) + ffc->Ref * (1/(ffc->dt/LPF_RC + 1))
+             = ref * A + ffc->Ref * (1-A)
+    A   = 1/(LPF_RC/ffc->dt + 1)
+    1-A = 1/(ffc->dt/LPF_RC + 1)
+    注：https://blog.csdn.net/qq_37662088/article/details/125075600
+    */
+
+    // 计算一阶导数
+    // calculate first derivative
+    if (ffc->Ref_dot_OLS_Order > 2)
+        ffc->Ref_dot = OLS_Derivative(&ffc->Ref_dot_OLS, ffc->dt, ffc->Ref);
+    else
+        ffc->Ref_dot = (ffc->Ref - ffc->Last_Ref) / ffc->dt;
+    // 计算二阶导数
+    // calculate second derivative
+    if (ffc->Ref_ddot_OLS_Order > 2)
+        ffc->Ref_ddot = OLS_Derivative(&ffc->Ref_ddot_OLS, ffc->dt, ffc->Ref_dot);
+    else
+        ffc->Ref_ddot = (ffc->Ref_dot - ffc->Last_Ref_dot) / ffc->dt;
+    // 计算前馈控制输出
+    // calculate feed-forward controller output
+    ffc->Output = ffc->c[0] * ffc->Ref + ffc->c[1] * ffc->Ref_dot + ffc->c[2] * ffc->Ref_ddot;
+
+    ffc->Output = float_constrain(ffc->Output, -ffc->MaxOut, ffc->MaxOut);
+
+    ffc->Last_Ref = ffc->Ref;
+
+    ffc->Last_Ref_dot = ffc->Ref_dot;
+
+    return ffc->Output;
+}
+
+/*************************LINEAR DISTURBANCE OBSERVER *************************/
+void LDOB_Init(
+    LDOB_t *ldob,
+    float max_d,
+    float deadband,
+    float *c,
+    float lpf_rc,
+    uint16_t measure_dot_ols_order,
+    uint16_t measure_ddot_ols_order)
+{
+    ldob->Max_Disturbance = max_d;
+
+    ldob->DeadBand = deadband;
+
+    // 设置线性扰动观测器参数 详见LDOB结构体定义
+    // set parameters of linear disturbance observer (see struct definition)
+    if (c != NULL && ldob != NULL)
+    {
+        ldob->c[0] = c[0];
+        ldob->c[1] = c[1];
+        ldob->c[2] = c[2];
+    }
+    else
+    {
+        ldob->c[0] = 0;
+        ldob->c[1] = 0;
+        ldob->c[2] = 0;
+        ldob->Max_Disturbance = 0;
+    }
+
+    // 设置Q(s)带宽  Q(s)选用一阶惯性环节
+    // set bandwidth of Q(s)    Q(s) is chosen as a first-order low-pass form
+    ldob->LPF_RC = lpf_rc;
+
+    // 最小二乘提取信号微分初始化
+    // differential signal is distilled by OLS
+    ldob->Measure_dot_OLS_Order = measure_dot_ols_order;
+    ldob->Measure_ddot_OLS_Order = measure_ddot_ols_order;
+    if (measure_dot_ols_order > 2)
+        OLS_Init(&ldob->Measure_dot_OLS, measure_dot_ols_order);
+    if (measure_ddot_ols_order > 2)
+        OLS_Init(&ldob->Measure_ddot_OLS, measure_ddot_ols_order);
+
+    ldob->DWT_CNT = 0;
+
+    ldob->Disturbance = 0;
+}
+
+float LDOB_Calculate(LDOB_t *ldob, float measure, float u)
+{
+    uint32_t tmp = ldob->DWT_CNT;
+    ldob->dt = DWT_GetDeltaT(&tmp);
+
+    ldob->Measure = measure;
+
+    ldob->u = u;
+
+    // 计算一阶导数
+    // calculate first derivative
+    if (ldob->Measure_dot_OLS_Order > 2)
+        ldob->Measure_dot = OLS_Derivative(&ldob->Measure_dot_OLS, ldob->dt, ldob->Measure);
+    else
+        ldob->Measure_dot = (ldob->Measure - ldob->Last_Measure) / ldob->dt;
+
+    // 计算二阶导数
+    // calculate second derivative
+    if (ldob->Measure_ddot_OLS_Order > 2)
+        ldob->Measure_ddot = OLS_Derivative(&ldob->Measure_ddot_OLS, ldob->dt, ldob->Measure_dot);
+    else
+        ldob->Measure_ddot = (ldob->Measure_dot - ldob->Last_Measure_dot) / ldob->dt;
+
+    // 估计总扰动
+    // estimate external disturbances and internal disturbances caused by model uncertainties
+    ldob->Disturbance = ldob->c[0] * ldob->Measure + ldob->c[1] * ldob->Measure_dot + ldob->c[2] * ldob->Measure_ddot - ldob->u;
+    ldob->Disturbance = ldob->Disturbance * ldob->dt / (ldob->LPF_RC + ldob->dt) +
+                        ldob->Last_Disturbance * ldob->LPF_RC / (ldob->LPF_RC + ldob->dt);
+
+    ldob->Disturbance = float_constrain(ldob->Disturbance, -ldob->Max_Disturbance, ldob->Max_Disturbance);
+
+    // 扰动输出死区
+    // deadband of disturbance output
+    if (abs(ldob->Disturbance) > ldob->DeadBand * ldob->Max_Disturbance)
+        ldob->Output = ldob->Disturbance;
+    else
+        ldob->Output = 0;
+
+    ldob->Last_Measure = ldob->Measure;
+    ldob->Last_Measure_dot = ldob->Measure_dot;
+    ldob->Last_Disturbance = ldob->Disturbance;
+
+    return ldob->Output;
+}
+
+/*************************** Tracking Differentiator ***************************/
+
+
+void TD_Init(TD_t *td, float r, float h0)
+{
+    td->r = r;    //微分器的比例系数。它用于调整微分器的响应强度
+    td->h0 = h0;  //表示微分器的初始值。它是微分器的初始状态
+
+    td->x = 0;
+    td->dx = 0;   //表示微分器的状态变量，即微分器的当前状态。它表示微分器的输出
+    td->ddx = 0;  //表示微分器的状态变量的微分，即微分器的当前变化率
+    td->last_dx = 0;
+    td->last_ddx = 0;
+}
+
+
+
+
+/*入口参数  TD_t的类型的指针   浮点数  input   返回值  返回
+1.在dwt_cnt的地址下取出时间间隔   td->dt
+*/
+float TD_Calculate(TD_t *td, float input)
+{
+    static float d, a0, y, a1, a2, a, fhan;
+
+    uint32_t tmp = td->DWT_CNT;
+    td->dt = DWT_GetDeltaT(&tmp);
+   //时间间隔过大 丢掉该数据
+    if (td->dt > 0.5f)
+        return 0;
+
+    td->Input = input;
+
+    d = td->r * td->h0 * td->h0;//它用于表示函数的变化率或斜率
+    a0 = td->dx * td->h0;       //输入信号的初始值或初值
+    y = td->x - td->Input + a0; //微分器的输出信号，表示对输入信号进行微分后得到的结果
+    a1 = Sqrt(d * (d + 8 * abs(y)));//它根据斜率与输出乘法、加法和开平方运算得到                   系数1
+    a2 = a0 + sign(y) * (a1 - d) / 2;  //它根据初始值a0、输出y和系数a1的值计算得到                系数2
+    a = (a0 + y) * (sign(y + d) - sign(y - d)) / 2 + a2 * (1 - (sign(y + d) - sign(y - d)) / 2);//系数3
+    fhan = -td->r * a / d * (sign(a + d) - sign(a - d)) / 2 -
+           td->r * sign(a) * (1 - (sign(a + d) - sign(a - d)) / 2);//
+
+    td->ddx = fhan;
+    td->dx += (td->ddx + td->last_ddx) * td->dt / 2;
+    td->x += (td->dx + td->last_dx) * td->dt / 2;
+
+    td->last_ddx = td->ddx;
+    td->last_dx = td->dx;
+
+    return td->x;
+}

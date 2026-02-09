@@ -9,10 +9,10 @@
 #include <math.h>
 
 /*==================== 温控与校准常量 ====================*/
-#define IMU_TARGET_TEMP        40.0f     // 目标温度 (℃)
-#define TEMP_STABLE_ERR        0.3f      // 稳定判据误差 (±0.3℃)
-#define TEMP_STABLE_TIME_MS    2000      // 稳定持续时间 (ms)
-#define GYRO_CALIB_SAMPLES     2000      // 陀螺仪采样样本数
+#define IMU_TARGET_TEMP        30.0f     // 目标温度 (℃)
+#define TEMP_STABLE_ERR        0.35f      // 稳定判据误差 (±0.3℃)
+#define TEMP_STABLE_TIME_MS    1500      // 稳定持续时间 (ms)
+#define GYRO_CALIB_SAMPLES     1000      // 陀螺仪采样样本数
 
 /*==================== PID 参数管理 ====================*/
 typedef struct {
@@ -33,6 +33,7 @@ static PID_Params_t current_pid;
 /*==================== 全局对象与状态 ====================*/
 PID_t imu_temp;
 IMU_Data_t IMU_Data;
+
 FuzzyRule_t fuzzy_rule_temp;
 
 IMU_CTRL_STATE_e imu_ctrl_state = TEMP_INIT;
@@ -140,8 +141,8 @@ void IMU_Temp_Control_Task(void)
     {
         case TEMP_INIT:
             IMU_Temp_Control_Init();
-            IMU_QuaternionEKF_Init(10, 0.001f, 10000000, 1, 0.001f,0.1f);
-            //IMU_QuaternionEKF_Init(100, 0.1f, 0.00001, 1, 0.001f,0);
+            IMU_QuaternionEKF_Init(0.001f, 0.001f, 0.01f, 0.9f, 0.001f, 0.05f);
+            //IMU_QuaternionEKF_Init(0.1f, 0.0001f, 0.8f, 0.996f, 0.001f, 0.25f);
             imu_ctrl_state = TEMP_PID_CTRL;
             break;
 
@@ -189,13 +190,17 @@ void IMU_Temp_Control_Task(void)
             IMU_Data.gyro[1] -= IMU_Data.gyro_correct[1];
             IMU_Data.gyro[2] -= IMU_Data.gyro_correct[2];
 
+            IMU_Data.accel[0] -= IMU_Data.accel_correct[0];
+            IMU_Data.accel[1] -= IMU_Data.accel_correct[1];
+            IMU_Data.accel[2] -= IMU_Data.accel_correct[2];
+
             IMU_QuaternionEKF_Update(
                 IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
                 IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2]);
             //ekf获取姿态角度函数
-            IMU_Data.pitch= - Get_Pitch();//获得pitch
+            IMU_Data.pitch= Get_Pitch();//获得pitch
             IMU_Data.roll= Get_Roll();//获得roll
-            IMU_Data.yaw= - Get_Yaw();//获得yaw
+            IMU_Data.yaw= Get_Yaw();//获得yaw
             IMU_Data.YawTotalAngle=Get_YawTotalAngle();
             memcpy(IMU_Data.q, QEKF_INS.q, 16);
             imu_ctrl_flag.fusion_enabled = 1;
@@ -217,19 +222,25 @@ void IMU_Gyro_Zero_Calibration_Task(void)
 {
     if (imu_ctrl_flag.gyro_calib_done) return;
 
-    if (ICM42688_IsDataReady())
-    {
+
         IMU_Data.gyro_correct[0] += IMU_Data.gyro[0];
         IMU_Data.gyro_correct[1] += IMU_Data.gyro[1];
         IMU_Data.gyro_correct[2] += IMU_Data.gyro[2];
+
+        IMU_Data.accel_correct[0] += IMU_Data.accel[0];
+        IMU_Data.accel_correct[1] += IMU_Data.accel[1];
+        IMU_Data.accel_correct[2] += IMU_Data.accel[2] - 9.81f; // 重力补偿
         gyro_calib_cnt++;
-    }
 
     if (gyro_calib_cnt >= GYRO_CALIB_SAMPLES)
     {
         IMU_Data.gyro_correct[0] /= (float)GYRO_CALIB_SAMPLES;
         IMU_Data.gyro_correct[1] /= (float)GYRO_CALIB_SAMPLES;
         IMU_Data.gyro_correct[2] /= (float)GYRO_CALIB_SAMPLES;
+
+        IMU_Data.accel_correct[0] /= (float)GYRO_CALIB_SAMPLES;
+        IMU_Data.accel_correct[1] /= (float)GYRO_CALIB_SAMPLES;
+        IMU_Data.accel_correct[2] /= (float)GYRO_CALIB_SAMPLES;
 
         gyro_calib_cnt = 0;
         imu_ctrl_flag.gyro_calib_done = 1;

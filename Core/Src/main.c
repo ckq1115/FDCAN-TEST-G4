@@ -121,6 +121,9 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM20_Init();
   /* USER CODE BEGIN 2 */
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+  SCB->CPACR |= ((3UL << (10*2)) | (3UL << (11*2)));  // 设置 CP10 和 CP11 为完全访问
+#endif
   CCMRAM_Init(); // 初始化 CCMRAM 数据段
   All_Init();
   /* USER CODE END 2 */

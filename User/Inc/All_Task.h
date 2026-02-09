@@ -18,6 +18,8 @@
 #include "QuaternionEKF.h"
 #include "cmsis_os2.h"
 #include "VOFA.h"
+#include "spi.h"
+#include "task.h"
 #define off_line 0
 #define on_Line  1
 

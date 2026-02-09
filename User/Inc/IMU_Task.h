@@ -31,6 +31,7 @@ typedef struct
 typedef struct
 {
     float gyro_correct[3];
+    float accel_correct[3];
     float gyro[3];
     float accel[3];
     float temp;

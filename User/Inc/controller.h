@@ -10,8 +10,9 @@
 #include "string.h"
 #include "stdlib.h"
 #include "BSP_DWT.h"
-// #include "arm_math.h"
+ #include "arm_math.h"
 #include <math.h>
+#include "user_lib.h"
 
 #ifndef abs
 #define abs(x) ((x > 0) ? x : -x)
@@ -152,5 +153,109 @@ void PID_Init(
     uint8_t improve);
 void PID_set(PID_t *pid, float kpid[3]);
 float PID_Calculate(PID_t *pid, float measure, float ref);
+
+/*************************** FEEDFORWARD CONTROL *****************************/
+typedef struct __packed
+{
+    float c[3]; // G(s) = 1/(c2s^2 + c1s + c0)
+
+    float Ref;
+    float Last_Ref;
+
+    float DeadBand;
+
+    uint32_t DWT_CNT;
+    float dt;
+
+    float LPF_RC; // RC = 1/omegac	一阶低通滤波参数
+
+    float Ref_dot;
+    float Ref_ddot;
+    float Last_Ref_dot;
+
+    uint16_t Ref_dot_OLS_Order;
+    Ordinary_Least_Squares_t Ref_dot_OLS;
+    uint16_t Ref_ddot_OLS_Order;
+    Ordinary_Least_Squares_t Ref_ddot_OLS;
+
+    float Output;
+    float MaxOut;
+
+} Feedforward_t;
+
+void Feedforward_Init(
+    Feedforward_t *ffc,
+    float max_out,
+    float *c,
+    float lpf_rc,
+    uint16_t ref_dot_ols_order,
+    uint16_t ref_ddot_ols_order);
+
+float Feedforward_Calculate(Feedforward_t *ffc, float ref);
+
+/************************* LINEAR DISTURBANCE OBSERVER *************************/
+typedef struct __packed
+{
+    float c[3]; // G(s) = 1/(c2s^2 + c1s + c0)
+
+    float Measure;
+    float Last_Measure;
+
+    float u; // system input
+
+    float DeadBand;
+
+    uint32_t DWT_CNT;
+    float dt;
+
+    float LPF_RC; // RC = 1/omegac
+
+    float Measure_dot;
+    float Measure_ddot;
+    float Last_Measure_dot;
+
+    uint16_t Measure_dot_OLS_Order;
+    Ordinary_Least_Squares_t Measure_dot_OLS;
+    uint16_t Measure_ddot_OLS_Order;
+    Ordinary_Least_Squares_t Measure_ddot_OLS;
+
+    float Disturbance;
+    float Output;
+    float Last_Disturbance;
+    float Max_Disturbance;
+} LDOB_t;
+
+void LDOB_Init(
+    LDOB_t *ldob,
+    float max_d,
+    float deadband,
+    float *c,
+    float lpf_rc,
+    uint16_t measure_dot_ols_order,
+    uint16_t measure_ddot_ols_order);
+
+float LDOB_Calculate(LDOB_t *ldob, float measure, float u);
+
+/*************************** Tracking Differentiator  跟踪微分器 ***************************/
+typedef struct __packed
+{
+    float Input;
+
+    float h0;
+    float r;
+
+    float x;
+    float dx;
+    float ddx;
+
+    float last_dx;
+    float last_ddx;
+
+    uint32_t DWT_CNT;
+    float dt;
+} TD_t;   //跟踪微分器
+
+void TD_Init(TD_t *td, float r, float h0);
+float TD_Calculate(TD_t *td, float input);
 
 #endif //FDCAN_TEST_G4_CONTROLLER_H
