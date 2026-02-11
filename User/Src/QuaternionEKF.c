@@ -49,7 +49,7 @@ void IMU_QuaternionEKF_Init(float process_noise1, float process_noise2, float me
     QEKF_INS.ZuptAccelThresh = 0.5f;
     QEKF_INS.ZuptGyroThresh = 0.1f;
 
-    QEKF_INS.ChiSquareTestThreshold = 1e-3f;
+    QEKF_INS.ChiSquareTestThreshold = 9.81f;
     QEKF_INS.ConvergeFlag = 0;
     QEKF_INS.ErrorCount = 0;
     QEKF_INS.UpdateCount = 0;
@@ -320,22 +320,22 @@ static void IMU_QuaternionEKF_SetH(KalmanFilter_t *kf)
     memset(kf->H_data, 0, sizeof_float * kf->zSize * kf->xhatSize);
 
     // X
-    kf->H_data[0] = -doubleq2;
-    kf->H_data[1] = doubleq3;
-    kf->H_data[2] = -doubleq0;
-    kf->H_data[3] = doubleq1;
+    kf->H_data[0] = -doubleq2* 9.81f;
+    kf->H_data[1] = doubleq3* 9.81f;
+    kf->H_data[2] = -doubleq0* 9.81f;
+    kf->H_data[3] = doubleq1* 9.81f;
 
     // Y
-    kf->H_data[6] = doubleq1;
-    kf->H_data[7] = doubleq0;
-    kf->H_data[8] = doubleq3;
-    kf->H_data[9] = doubleq2;
+    kf->H_data[6] = doubleq1* 9.81f;
+    kf->H_data[7] = doubleq0* 9.81f;
+    kf->H_data[8] = doubleq3* 9.81f;
+    kf->H_data[9] = doubleq2* 9.81f;
 
     // Z
-    kf->H_data[12] = doubleq0;
-    kf->H_data[13] = -doubleq1;
-    kf->H_data[14] = -doubleq2;
-    kf->H_data[15] = doubleq3;
+    kf->H_data[12] = doubleq0* 9.81f;
+    kf->H_data[13] = -doubleq1* 9.81f;
+    kf->H_data[14] = -doubleq2* 9.81f;
+    kf->H_data[15] = doubleq3* 9.81f;
 }
 
 // Replaces Eq3 and Eq4 (Calculation of K, Residual, and State Update)
@@ -368,9 +368,9 @@ static void IMU_QuaternionEKF_CalculateGainAndResidual(KalmanFilter_t *kf)
     q3 = kf->xhatminus_data[3];
 
     // Predicted Gravity
-    kf->temp_vector.pData[0] = 2.0f * (q1 * q3 - q0 * q2);
-    kf->temp_vector.pData[1] = 2.0f * (q0 * q1 + q2 * q3);
-    kf->temp_vector.pData[2] = q0*q0 - q1*q1 - q2*q2 + q3*q3;
+    kf->temp_vector.pData[0] = 2.0f * (q1 * q3 - q0 * q2) * 9.81f;
+    kf->temp_vector.pData[1] = 2.0f * (q0 * q1 + q2 * q3) * 9.81f;
+    kf->temp_vector.pData[2] = (q0*q0 - q1*q1 - q2*q2 + q3*q3) * 9.81f;
     // Bias parts of temp_vector are 0 since H for bias is 0
 
     // y = z - h(x)

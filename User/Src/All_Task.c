@@ -20,8 +20,7 @@ void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     }
 }
 
-ICM42688_Device_t imu;
-ICM_Data_t imu_data;
+
 void StartDefaultTask(void *argument)
 {
     /* USER CODE BEGIN StartDefaultTask */
@@ -29,7 +28,7 @@ void StartDefaultTask(void *argument)
         // 初始化失败，挂起任务
         vTaskSuspend(NULL);
     }*/
-    ICM42688_Init(&imu, &hspi2, GPIOB, GPIO_PIN_12);
+    ICM42688_Init();
     int32_t last_wake_time = DWT->CYCCNT; // 初始化记录时间戳
     float task_period = 0;
     /* Infinite loop */
@@ -38,21 +37,26 @@ void StartDefaultTask(void *argument)
         task_period = DWT_GetDeltaT(&last_wake_time);
         run_time_s = DWT_GetTimeline_s();
         //uint32_t cnt_last = DWT->CYCCNT;
-        ICM42688_ReadData(&imu, &imu_data);
-        IMU_Data.accel[0] = -imu_data.accel[0];
-        IMU_Data.accel[1] = -imu_data.accel[1];
-        IMU_Data.accel[2] = -imu_data.accel[2];
-        IMU_Data.gyro[0] = -imu_data.gyro[0];
-        IMU_Data.gyro[1] = -imu_data.gyro[1];
-        IMU_Data.gyro[2] = -imu_data.gyro[2];
-        IMU_Data.temp = imu_data.temp;
+        ICM42688_read(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
         IMU_Temp_Control_Task();
-        VOFA_justfloat(IMU_Data.accel[0],
+        /*VOFA_justfloat(IMU_Data.accel[0],
             IMU_Data.accel[1],
             IMU_Data.accel[2],
             IMU_Data.yaw,
             IMU_Data.pitch,
-            IMU_Data.roll,run_time_s,IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2]);
+            IMU_Data.roll,run_time_s,IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2]);*/
+        // 建议的 VOFA 打印顺序，方便对比观察
+        VOFA_justfloat(
+            IMU_Data.pitch,
+            IMU_Data.roll,
+            IMU_Data.yaw,
+            mahony_filter.q0,
+            -mahony_filter.q1,
+            -mahony_filter.q2,
+            mahony_filter.q3,
+            run_time_s,
+            0,0
+        );
         //dt_s = DWT_GetDeltaT(&cnt_last);
         osDelay(1);
     }

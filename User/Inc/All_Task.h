@@ -20,6 +20,7 @@
 #include "VOFA.h"
 #include "spi.h"
 #include "task.h"
+#include "mahony_filter.h"
 #define off_line 0
 #define on_Line  1
 

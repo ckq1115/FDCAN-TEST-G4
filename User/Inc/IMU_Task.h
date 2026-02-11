@@ -52,5 +52,5 @@ void IMU_Temp_PID_Init(void);
 void IMU_Temp_Control_Task(void);
 void IMU_Gyro_Zero_Calibration_Task(void);
 void IMU_Gyro_Calib_Initiate(void);
-
+extern float pitch,roll,yaw;
 #endif //FDCAN_TEST_G4_IMU_TASK_H

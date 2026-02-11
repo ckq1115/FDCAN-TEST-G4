@@ -95,7 +95,7 @@ void IMU_Temp_Control_Init(void)
 }
 
 /*==================== 核心任务逻辑 ====================*/
-
+float pitch,roll,yaw;
 /**
  * @brief IMU温度控制与状态管理主任务
  * @note  建议调用频率：1ms (内部自带10ms分频)
@@ -141,8 +141,9 @@ void IMU_Temp_Control_Task(void)
     {
         case TEMP_INIT:
             IMU_Temp_Control_Init();
-            IMU_QuaternionEKF_Init(0.001f, 0.001f, 0.01f, 0.9f, 0.001f, 0.05f);
-            //IMU_QuaternionEKF_Init(0.1f, 0.0001f, 0.8f, 0.996f, 0.001f, 0.25f);
+            //IMU_QuaternionEKF_Init(10, 0.001f, 1, 1, 0.001f,0);
+            IMU_QuaternionEKF_Init(10, 0.01f, 10000000, 1, 0.001f,0);
+            mahony_init(&mahony_filter, 5.0f, 0.05f, 0.001f);
             imu_ctrl_state = TEMP_PID_CTRL;
             break;
 
@@ -189,20 +190,31 @@ void IMU_Temp_Control_Task(void)
             IMU_Data.gyro[0] -= IMU_Data.gyro_correct[0];
             IMU_Data.gyro[1] -= IMU_Data.gyro_correct[1];
             IMU_Data.gyro[2] -= IMU_Data.gyro_correct[2];
+            IMU_Data.gyro[1] = -IMU_Data.gyro[1];
+            IMU_Data.gyro[2] = -IMU_Data.gyro[2];
 
             IMU_Data.accel[0] -= IMU_Data.accel_correct[0];
             IMU_Data.accel[1] -= IMU_Data.accel_correct[1];
-            IMU_Data.accel[2] -= IMU_Data.accel_correct[2];
-
+            IMU_Data.accel[2] -= IMU_Data.accel_correct[2]+9.81f;
+            IMU_Data.accel[1] = -IMU_Data.accel[1];
+            IMU_Data.accel[2] = -IMU_Data.accel[2];
             IMU_QuaternionEKF_Update(
                 IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
                 IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2]);
             //ekf获取姿态角度函数
-            IMU_Data.pitch= Get_Pitch();//获得pitch
-            IMU_Data.roll= Get_Roll();//获得roll
-            IMU_Data.yaw= Get_Yaw();//获得yaw
+            pitch= Get_Pitch();//获得pitch
+            roll= Get_Roll();//获得roll
+            yaw= Get_Yaw();//获得yaw
             IMU_Data.YawTotalAngle=Get_YawTotalAngle();
             memcpy(IMU_Data.q, QEKF_INS.q, 16);
+            mahony_update(&mahony_filter,
+    IMU_Data.gyro[0], IMU_Data.gyro[1], IMU_Data.gyro[2],
+    IMU_Data.accel[0], IMU_Data.accel[1], IMU_Data.accel[2]);
+
+            mahony_output(&mahony_filter);
+            IMU_Data.pitch = mahony_filter.pitch;
+            IMU_Data.roll = mahony_filter.roll;
+            IMU_Data.yaw = mahony_filter.yaw;
             imu_ctrl_flag.fusion_enabled = 1;
             break;
 
@@ -229,7 +241,7 @@ void IMU_Gyro_Zero_Calibration_Task(void)
 
         IMU_Data.accel_correct[0] += IMU_Data.accel[0];
         IMU_Data.accel_correct[1] += IMU_Data.accel[1];
-        IMU_Data.accel_correct[2] += IMU_Data.accel[2] - 9.81f; // 重力补偿
+        IMU_Data.accel_correct[2] += IMU_Data.accel[2]; // 减去重力加速度
         gyro_calib_cnt++;
 
     if (gyro_calib_cnt >= GYRO_CALIB_SAMPLES)

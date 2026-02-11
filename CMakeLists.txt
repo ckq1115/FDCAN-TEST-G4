@@ -74,6 +74,8 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Src/QuaternionEKF.c
         User/Inc/user_lib.h
         User/Src/user_lib.c
+        User/Inc/mahony_filter.h
+        User/Src/mahony_filter.c
 )
 
 # 添加用户源文件 (请根据实际文件增减)
