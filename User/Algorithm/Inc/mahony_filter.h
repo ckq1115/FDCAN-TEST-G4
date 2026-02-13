@@ -42,16 +42,16 @@ struct MAHONY_FILTER_t
     float dt;              // 采样间隔
     Axis3f  gyro, acc;     // 陀螺仪/加速度计数据
     Axis3f gyro_bias;      // 陀螺仪零偏
+    float acc_norm;
 
     // 过程参数
     float exInt, eyInt, ezInt;  // 积分误差
     float q0, q1, q2, q3;       // 四元数
-    float q_smooth[4];          // 平滑四元数
     float rMat[3][3];           // 旋转矩阵
 
     // 输出参数
     float pitch, roll, yaw;     // 俯仰/横滚/偏航角
-
+    float YawTotalAngle;          // 累积偏航角
     // 函数指针
     void (*mahony_update)(struct MAHONY_FILTER_t *mahony_filter,
                           float gx, float gy, float gz,

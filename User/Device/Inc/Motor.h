@@ -41,14 +41,7 @@ typedef struct
     PID_t PID_S;
 }DJI_MOTOR_Typedef;
 
-typedef struct
-{
-    DJI_MOTOR_Typedef  GM6020_1;
-    DJI_MOTOR_Typedef  M3508_1;
-    DJI_MOTOR_Typedef  M3508_2;
-    DJI_MOTOR_Typedef  M3508_3;
-    DJI_MOTOR_Typedef  M3508_4;
-} All_Motor_TypeDef;
+
 
 typedef struct{
     float shunt_volt;
@@ -66,7 +59,7 @@ typedef struct{
 }ALL_POWER_RX;
 
 extern ALL_POWER_RX All_Power;
-extern All_Motor_TypeDef All_Motor;
+
 
 void MOTOR_CAN_RX_3508RM(DJI_MOTOR_DATA_Typedef* DATA , uint8_t* can_data);
 void MOTOR_CAN_RX_2006RM(DJI_MOTOR_DATA_Typedef* MOTOR , uint8_t* can_data);
@@ -181,6 +174,8 @@ typedef struct
     float none_null;
 }DM_MOTOR_V_Typdef;
 
+extern DM_MOTOR_V_Typdef M3507;
+
 
 
 typedef enum
@@ -193,10 +188,22 @@ typedef enum
 int16_t OneFilter1(int16_t last, int16_t now, float thresholdValue);
 void motor_mode(hcan_t* hcan, uint16_t motor_id, uint16_t mode_id, DMMotor_Mode_e what);
 void pos_speed_ctrl(hcan_t* hcan,uint16_t motor_id, DM_MOTOR_PV_Typdef *PVS);
+void speed_ctrl(hcan_t* hcan,uint16_t motor_id, DM_MOTOR_V_Typdef *vel);
 float uint_to_float(int x_int, float x_min, float x_max, int bits);
 void DM_current_set(hcan_t* hcan, uint16_t id, float m1_cur_set, float m2_cur_set, float m3_cur_set, float m4_cur_set);
 void DM_RXdata(DM_MOTOR_Typdef  *motor, uint8_t *rx_data);
 void DM_FBdata(DM_MOTOR_Typdef *motor, uint8_t *rx_data);
 void mit_ctrl(hcan_t* hcan, uint16_t motor_id, float pos, float vel,float kp, float kd, float torq);
 
+
+typedef struct
+{
+	DJI_MOTOR_Typedef  GM6020_1;
+	DJI_MOTOR_Typedef  M3508_1;
+	DJI_MOTOR_Typedef  M3508_2;
+	DJI_MOTOR_Typedef  M3508_3;
+	DJI_MOTOR_Typedef  M3508_4;
+	DM_MOTOR_Typdef DM3507_1;
+} All_Motor_TypeDef;
+extern All_Motor_TypeDef All_Motor;
 #endif //FDCAN_TEST_G4_MOTOR_H

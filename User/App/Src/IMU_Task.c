@@ -27,18 +27,17 @@ static const PID_Params_t base_pid = {70.0f, 0.12f, 100.0f};
 // 实时运行参数
 static PID_Params_t current_pid;
 
-/*==================== 硬件控制限制 ====================*/
 #define HEATER_PWM_MAX         1000.0f
 
-/*==================== 全局对象与状态 ====================*/
-PID_t imu_temp;
 IMU_Data_t IMU_Data;
-
-FuzzyRule_t fuzzy_rule_temp;
-
 IMU_CTRL_STATE_e imu_ctrl_state = TEMP_INIT;
 IMU_CTRL_FLAG_t  imu_ctrl_flag  = {0};
-
+PID_t imu_temp;
+FuzzyRule_t fuzzy_rule_temp;
+IMU_Data_t IMU_Data = {
+    .accel_bias = {0.0008083283f, -0.0047598350f, -0.2777566847f},
+    .accel_scale = {0.9988336798f, 0.9993976021f, 0.9957139720f}
+};
 /*==================== 内部私有变量 ====================*/
 static uint32_t temp_stable_tick = 0;
 static uint16_t imu_pid_cnt      = 0;
@@ -95,21 +94,19 @@ void IMU_Temp_Control_Init(void)
 }
 
 /*==================== 核心任务逻辑 ====================*/
-float pitch,roll,yaw;
 /**
  * @brief IMU温度控制与状态管理主任务
  * @note  建议调用频率：1ms (内部自带10ms分频)
  */
-void IMU_Temp_Control_Task(void)
+void IMU_Update_Task(void)
 {
-    float current_t = IMU_Data.temp;
+    float now_temp = IMU_Data.temp;
 
-    /*-------------------- 1. 高频PID计算 (10ms) --------------------*/
     if (imu_ctrl_state != TEMP_INIT)
     {
         if (++imu_pid_cnt >= 10)
         {
-            if (current_t <= IMU_TARGET_TEMP-10.0f)
+            if (now_temp <= IMU_TARGET_TEMP-10.0f)
             {
                 // 低于目标温度10度时，直接全功率加热，避免长时间低功率加热无效
                 heater_pwm_out = HEATER_PWM_MAX;
@@ -119,7 +116,7 @@ void IMU_Temp_Control_Task(void)
             }
             else {
                 // 更新模糊推理
-                Fuzzy_Rule_Implementation(&fuzzy_rule_temp, current_t, IMU_TARGET_TEMP);
+                Fuzzy_Rule_Implementation(&fuzzy_rule_temp, now_temp, IMU_TARGET_TEMP);
 
                 // 在基准参数上叠加模糊修正量
                 current_pid.kp = base_pid.kp + (fuzzy_rule_temp.KpFuzzy * fuzzy_rule_temp.KpRatio);
@@ -128,7 +125,7 @@ void IMU_Temp_Control_Task(void)
 
                 // 应用新参数并计算输出
                 PID_set(&imu_temp, (float*)&current_pid);
-                heater_pwm_out = PID_Calculate(&imu_temp, current_t, IMU_TARGET_TEMP);
+                heater_pwm_out = PID_Calculate(&imu_temp, now_temp, IMU_TARGET_TEMP);
 
                 Set_Heater_PWM(heater_pwm_out);
                 imu_pid_cnt = 0;
@@ -141,15 +138,14 @@ void IMU_Temp_Control_Task(void)
     {
         case TEMP_INIT:
             IMU_Temp_Control_Init();
-            //IMU_QuaternionEKF_Init(10, 0.001f, 1, 1, 0.001f,0);
-            IMU_QuaternionEKF_Init(10, 0.01f, 10000000, 1, 0.001f,0);
-            mahony_init(&mahony_filter, 5.0f, 0.05f, 0.001f);
+            //IMU_QuaternionEKF_Init(10, 0.01f, 10000000, 1, 0.001f,0);
+            mahony_init(&mahony_filter, 5.0f, 0.01f, 0.001f);
             imu_ctrl_state = TEMP_PID_CTRL;
             break;
 
         case TEMP_PID_CTRL:
             WS2812_SetPixel(0, 200, 40, 0);  // 橙色：加热中
-            if (fabsf(current_t - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
+            if (fabsf(now_temp - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
             {
                 imu_ctrl_flag.temp_reached = 1;
                 temp_stable_tick = HAL_GetTick();
@@ -159,18 +155,16 @@ void IMU_Temp_Control_Task(void)
 
         case TEMP_STABLE:
             WS2812_SetPixel(0, 200, 0, 200); // 紫色：恒温稳定判断
-            if (fabsf(current_t - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
+            if (fabsf(now_temp - IMU_TARGET_TEMP) < TEMP_STABLE_ERR)
             {
                 if (HAL_GetTick() - temp_stable_tick > TEMP_STABLE_TIME_MS)
                 {
                     imu_ctrl_flag.temp_stable = 1;
                     imu_ctrl_state = GYRO_CALIB;
-                    //imu_ctrl_state = FUSION_RUN;
                 }
             }
             else
             {
-                // 温度波动过大，退回PID控制阶段重新计时
                 imu_ctrl_state = TEMP_PID_CTRL;
             }
             break;
@@ -180,6 +174,10 @@ void IMU_Temp_Control_Task(void)
             IMU_Gyro_Zero_Calibration_Task();
             if (imu_ctrl_flag.gyro_calib_done)
             {
+                /*VOFA_justfloat(
+            IMU_Data.accel_correct[0],
+            IMU_Data.accel_correct[1],
+            IMU_Data.accel_correct[2],0,0,0,0,0,0,0);//用于加速度计椭球拟合零偏及尺度因子*/
                 imu_ctrl_state = FUSION_RUN;
             }
             break;
@@ -193,28 +191,31 @@ void IMU_Temp_Control_Task(void)
             IMU_Data.gyro[1] = -IMU_Data.gyro[1];
             IMU_Data.gyro[2] = -IMU_Data.gyro[2];
 
-            IMU_Data.accel[0] -= IMU_Data.accel_correct[0];
-            IMU_Data.accel[1] -= IMU_Data.accel_correct[1];
-            IMU_Data.accel[2] -= IMU_Data.accel_correct[2]+9.81f;
+
+            IMU_Data.accel[0] = (IMU_Data.accel[0] - IMU_Data.accel_bias[0]) * IMU_Data.accel_scale[0];
+            IMU_Data.accel[1] = (IMU_Data.accel[1] - IMU_Data.accel_bias[1]) * IMU_Data.accel_scale[1];
+            IMU_Data.accel[2] = (IMU_Data.accel[2] - IMU_Data.accel_bias[2]) * IMU_Data.accel_scale[2];
+            /*VOFA_justfloat(
+            IMU_Data.gyro[0],
+            IMU_Data.gyro[1],
+            IMU_Data.gyro[2],
+            IMU_Data.accel[0],
+            IMU_Data.accel[1],
+            IMU_Data.accel[2],0,0,0,0);//用于FFT分析采样*/
             IMU_Data.accel[1] = -IMU_Data.accel[1];
             IMU_Data.accel[2] = -IMU_Data.accel[2];
-            IMU_QuaternionEKF_Update(
+            /*IMU_QuaternionEKF_Update(
                 IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
                 IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2]);
-            //ekf获取姿态角度函数
-            pitch= Get_Pitch();//获得pitch
-            roll= Get_Roll();//获得roll
-            yaw= Get_Yaw();//获得yaw
-            IMU_Data.YawTotalAngle=Get_YawTotalAngle();
-            memcpy(IMU_Data.q, QEKF_INS.q, 16);
+            memcpy(IMU_Data.q, QEKF_INS.q, 16);*/
             mahony_update(&mahony_filter,
-    IMU_Data.gyro[0], IMU_Data.gyro[1], IMU_Data.gyro[2],
-    IMU_Data.accel[0], IMU_Data.accel[1], IMU_Data.accel[2]);
-
+            IMU_Data.gyro[0], IMU_Data.gyro[1], IMU_Data.gyro[2],
+            IMU_Data.accel[0], IMU_Data.accel[1], IMU_Data.accel[2]);
             mahony_output(&mahony_filter);
             IMU_Data.pitch = mahony_filter.pitch;
             IMU_Data.roll = mahony_filter.roll;
             IMU_Data.yaw = mahony_filter.yaw;
+            IMU_Data.YawTotalAngle = mahony_filter.YawTotalAngle;
             imu_ctrl_flag.fusion_enabled = 1;
             break;
 
@@ -235,14 +236,14 @@ void IMU_Gyro_Zero_Calibration_Task(void)
     if (imu_ctrl_flag.gyro_calib_done) return;
 
 
-        IMU_Data.gyro_correct[0] += IMU_Data.gyro[0];
-        IMU_Data.gyro_correct[1] += IMU_Data.gyro[1];
-        IMU_Data.gyro_correct[2] += IMU_Data.gyro[2];
+    IMU_Data.gyro_correct[0] += IMU_Data.gyro[0];
+    IMU_Data.gyro_correct[1] += IMU_Data.gyro[1];
+    IMU_Data.gyro_correct[2] += IMU_Data.gyro[2];
 
-        IMU_Data.accel_correct[0] += IMU_Data.accel[0];
-        IMU_Data.accel_correct[1] += IMU_Data.accel[1];
-        IMU_Data.accel_correct[2] += IMU_Data.accel[2]; // 减去重力加速度
-        gyro_calib_cnt++;
+    IMU_Data.accel_correct[0] += IMU_Data.accel[0];
+    IMU_Data.accel_correct[1] += IMU_Data.accel[1];
+    IMU_Data.accel_correct[2] += IMU_Data.accel[2]; // 重力补偿
+    gyro_calib_cnt++;
 
     if (gyro_calib_cnt >= GYRO_CALIB_SAMPLES)
     {
@@ -258,8 +259,6 @@ void IMU_Gyro_Zero_Calibration_Task(void)
         imu_ctrl_flag.gyro_calib_done = 1;
     }
 }
-
-
 /**
  * @brief 外部触发重新校准
  */

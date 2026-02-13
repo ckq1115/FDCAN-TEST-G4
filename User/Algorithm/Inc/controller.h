@@ -10,7 +10,7 @@
 #include "string.h"
 #include "stdlib.h"
 #include "BSP_DWT.h"
- #include "arm_math.h"
+#include "arm_math.h"
 #include <math.h>
 #include "user_lib.h"
 

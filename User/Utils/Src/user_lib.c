@@ -2,7 +2,7 @@
 // Created by CaoKangqi on 2026/1/30.
 //
 #include "string.h"
-#include "user_lib.h"
+#include "../Inc/user_lib.h"
 
 #include <stdlib.h>
 

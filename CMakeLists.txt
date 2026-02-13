@@ -15,7 +15,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
-
+# 强制开启优化选项
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_options(-Og) # -Og 是专门为调试设计的优化，比 -O0 快得多
+else()
+    add_compile_options(-Ofast) # 生产环境追求极致速度
+endif()
 # ------------------------------------------------------------------------------
 # 2. 硬件架构参数 (核心配置)
 # STM32G473 使用 Cortex-M4F，FPU 类型为 fpv4-sp-d16
@@ -25,6 +30,7 @@ set(CPU_FLAGS
         -mthumb
         -mfpu=fpv4-sp-d16
         -mfloat-abi=hard
+        -flto
 )
 
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/DSP/Lib/GCC)
@@ -44,38 +50,41 @@ add_link_options(
         ${CPU_FLAGS}
         -Wl,--gc-sections
         -Wl,--print-memory-usage
+        -flto
 )
 
 # ------------------------------------------------------------------------------
 # 5. 可执行文件定义
 # ------------------------------------------------------------------------------
 add_executable(${CMAKE_PROJECT_NAME}
-        User/Src/All_Task.c
-        User/Inc/Vofa.h
-        User/Src/Vofa.c
-        User/Inc/DBUS.h
-        User/Src/DBUS.c
-        User/Inc/All_Task.h
-        User/Inc/controller.h
-        User/Src/controller.c
-        User/Inc/BSP_DWT.h
-        User/Src/BSP_DWT.c
-        User/Inc/BSP_ICM42688P.h
-        User/Src/BSP_ICM42688P.c
-        User/Inc/WS2812.h
-        User/Src/WS2812.c
-        User/Inc/CKQ_MATH.h
-        User/Src/CKQ_MATH.c
-        User/Src/IMU_Task.c
-        User/Inc/IMU_Task.h
-        User/Inc/kalman_filter.h
-        User/Src/kalman_filter.c
-        User/Inc/QuaternionEKF.h
-        User/Src/QuaternionEKF.c
-        User/Inc/user_lib.h
-        User/Src/user_lib.c
-        User/Inc/mahony_filter.h
-        User/Src/mahony_filter.c
+        User/App/Src/All_Task.c
+        User/Utils/Inc/Vofa.h
+        User/Utils/Src/Vofa.c
+        User/Device/Inc/DBUS.h
+        User/Device/Src/DBUS.c
+        User/App/Inc/All_Task.h
+        User/Algorithm/Inc/controller.h
+        User/Algorithm/Src/controller.c
+        User/BSP/Inc/BSP_DWT.h
+        User/BSP/Src/BSP_DWT.c
+        User/BSP/Inc/BSP_ICM42688P.h
+        User/BSP/Src/BSP_ICM42688P.c
+        User/BSP/Inc/WS2812.h
+        User/BSP/Src/WS2812.c
+        User/Algorithm/Inc/CKQ_MATH.h
+        User/Algorithm/Src/CKQ_MATH.c
+        User/App/Src/IMU_Task.c
+        User/App/Inc/IMU_Task.h
+        User/Algorithm/Inc/kalman_filter.h
+        User/Algorithm/Src/kalman_filter.c
+        User/Algorithm/Inc/QuaternionEKF.h
+        User/Algorithm/Src/QuaternionEKF.c
+        User/Utils/Inc/user_lib.h
+        User/Utils/Src/user_lib.c
+        User/Algorithm/Inc/mahony_filter.h
+        User/Algorithm/Src/mahony_filter.c
+        User/Utils/Inc/All_Init.h
+        User/Utils/Src/All_Init.c
 )
 
 # 添加用户源文件 (请根据实际文件增减)
@@ -88,8 +97,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         Core/Src/stm32g4xx_hal_msp.c
         Core/Src/sysmem.c
         Core/Src/syscalls.c
-        User/Src/BSP_FDCAN.c
-        User/Src/Motor.c
+        User/BSP/Src/BSP_FDCAN.c
+        User/Device/Src/Motor.c
         # 启动文件通常在 stm32cubemx 内部处理，或者手动添加如下：
         startup_stm32g473xx.s
 )
@@ -97,7 +106,11 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # 添加包含路径
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         Core/Inc/
-        User/Inc/
+        User/App/Inc
+        User/BSP/Inc
+        User/Device/Inc
+        User/Algorithm/Inc
+        User/Utils/Inc
         # --- 新增 DSP 相关路径 ---
         Drivers/CMSIS/Include
         Drivers/CMSIS/DSP/Include

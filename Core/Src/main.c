@@ -28,33 +28,39 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "All_Task.h"
+#include "All_Init.h"
 #include "arm_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-extern uint32_t _siccmram; /* CCMRAM 初始值在 Flash 中的地址 */
-extern uint32_t _sccmram;  /* CCMRAM 在 RAM 中的起始地址 */
-extern uint32_t _eccmram;  /* CCMRAM 在 RAM 中的结束地址 */
-
 /**
   * @brief 手动初始化 CCMRAM 数据段
   */
 void CCMRAM_Init(void) {
-  uint32_t *pSource = &_siccmram;
-  uint32_t *pDest = &_sccmram;
+  // 1. 确保 FPU 已开启（G4 必须开启后才能处理某些含浮点指令的代码段）
+  SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
+  __DSB(); // 确保指令生效
 
-  /* 将数据从 Flash 拷贝到 CCMRAM */
-  while (pDest < &_eccmram) {
-    *pDest++ = *pSource++;
+  extern uint32_t _siccmram, _sccmram, _eccmram;
+
+  // 2. 只有当地址不相等时才拷贝（防止重入）
+  if (&_sccmram != &_siccmram) {
+    uint32_t *pSrc = &_siccmram;
+    uint32_t *pDest = &_sccmram;
+
+    while (pDest < &_eccmram) {
+      *pDest++ = *pSrc++;
+    }
   }
+  __ISB(); // 刷新指令流水线，确保搬运的代码可以立即执行
 }
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+extern void vTaskSwitchContext(void);
+__attribute__((used)) void* dummy_keep = (void*)vTaskSwitchContext;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -123,6 +129,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
   SCB->CPACR |= ((3UL << (10*2)) | (3UL << (11*2)));  // 设置 CP10 和 CP11 为完全访问
+  FPU->FPDSCR |= FPU_FPDSCR_FZ_Msk;               // 开启强制清零模式，防止极小值拖慢速度
+  __DSB();
+  __ISB();
 #endif
   CCMRAM_Init(); // 初始化 CCMRAM 数据段
   All_Init();

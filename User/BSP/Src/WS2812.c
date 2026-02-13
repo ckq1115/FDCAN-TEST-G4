@@ -1,7 +1,7 @@
 //
 // Created by CaoKangqi on 2026/1/23.
 //
-#include "ws2812.h"
+#include "WS2812.h"
 #include <string.h>
 #include "tim.h"
 #include "BSP_DWT.h"

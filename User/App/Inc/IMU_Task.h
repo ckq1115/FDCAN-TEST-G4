@@ -9,7 +9,7 @@
 #include "BSP_ICM42688P.h"
 #include "TIM.h"
 #include "controller.h"
-#include "All_Task.h"
+#include "All_Init.h"
 
 typedef enum
 {
@@ -31,7 +31,9 @@ typedef struct
 typedef struct
 {
     float gyro_correct[3];
+    float accel_bias[3];     //加速度计零偏标定
     float accel_correct[3];
+    float accel_scale[3];    //加速度计尺度因子标定
     float gyro[3];
     float accel[3];
     float temp;
@@ -46,10 +48,12 @@ typedef struct
     uint8_t attitude_flag;
     uint32_t correct_times;
 }IMU_Data_t;
+
 extern IMU_Data_t IMU_Data;
+
 void Set_Heat_Power(float pwm);
 void IMU_Temp_PID_Init(void);
-void IMU_Temp_Control_Task(void);
+void IMU_Update_Task(void);
 void IMU_Gyro_Zero_Calibration_Task(void);
 void IMU_Gyro_Calib_Initiate(void);
 extern float pitch,roll,yaw;

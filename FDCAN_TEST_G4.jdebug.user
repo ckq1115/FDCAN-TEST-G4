@@ -1,11 +1,11 @@
 
 
 GraphedExpression="(IMU_Data).temp", Color=#e56a6f, Show=0
-GraphedExpression="(IMU_Data).pitch", Color=#35792b
-GraphedExpression="(IMU_Data).roll", Color=#769dda, Show=0
-GraphedExpression="(IMU_Data).yaw", Color=#b14f0d, Show=0
+GraphedExpression="(IMU_Data).roll", Color=#35792b
+GraphedExpression="(IMU_Data).yaw", Color=#769dda, Show=0
+GraphedExpression="(IMU_Data).pitch", Color=#b14f0d, Show=0
 GraphedExpression="yaw", Color=#b3c38e, Show=0
-OpenDocument="arm_mat_mult_f32.c", FilePath="C:/Users/jonant01/git/CMSIS_5/CMSIS/DSP/Source/MatrixFunctions/arm_mat_mult_f32.c", Line=0
+OpenDocument="WS2812.h", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/Inc/WS2812.h", Line=5
 OpenDocument="stm32g4xx_it.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/Core/Src/stm32g4xx_it.c", Line=86
 OpenDocument="mahony_filter.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/Src/mahony_filter.c", Line=72
 OpenDocument="IMU_Task.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/Src/IMU_Task.c", Line=205
@@ -13,19 +13,19 @@ OpenDocument="tasks.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/Middlewares/Thi
 OpenDocument="main.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/Core/Src/main.c", Line=79
 OpenToolbar="Debug", Floating=0, x=0, y=0
 OpenWindow="Source Files", DockArea=LEFT, x=0, y=0, w=559, h=866, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=735, h=233, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=735, h=233, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=RIGHT, x=0, y=1, w=735, h=398, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Data Sampling", DockArea=BOTTOM, x=2, y=0, w=673, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
-OpenWindow="Timeline", DockArea=BOTTOM, x=1, y=0, w=1450, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="2 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="44;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="1015;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="1037;0"
-OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=435, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=735, h=238, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=735, h=206, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=RIGHT, x=0, y=1, w=735, h=420, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=BOTTOM, x=1, y=0, w=680, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+OpenWindow="Timeline", DockArea=FLOATING, x=18, y=94, w=1780, h=1372, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="2 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="44;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="1181;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="1188;0"
+OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=1879, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Global Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[268;100;118;100;100;100]
 TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[222;100;100;100;1235]
-TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (IMU_Data).temp";" (IMU_Data).pitch";" (IMU_Data).roll";" (IMU_Data).yaw";" yaw"], ColWidths=[100;100;100;100;100;100;100]
-TableHeader="Data Sampling Setup", SortCol="# Changes", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"# Changes"], ColWidths=[214;100;170;189]
+TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (IMU_Data).temp";" (IMU_Data).roll";" (IMU_Data).yaw";" (IMU_Data).pitch";" yaw"], ColWidths=[100;100;100;100;100;100;100]
+TableHeader="Data Sampling Setup", SortCol="# Changes", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"# Changes"], ColWidths=[214;100;100;266]
 TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
-TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[260;198;119;158]
+TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[260;198;119;132]
 TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
 TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;100;100;340]
 WatchedExpression="run_time_s", RefreshRate=5, Window=Watched Data 1

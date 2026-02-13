@@ -1,7 +1,7 @@
 //
 // Created by CaoKangqi on 2026/1/19.
 //
-#include "VOFA.h"
+#include "../Inc/Vofa.h"
 #include "main.h"
 #include "usart.h"
 
