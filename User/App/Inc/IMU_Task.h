@@ -50,7 +50,9 @@ typedef struct
 }IMU_Data_t;
 
 extern IMU_Data_t IMU_Data;
-
+extern IMU_CTRL_STATE_e imu_ctrl_state;
+extern IMU_CTRL_FLAG_t imu_ctrl_flag;
+extern
 void Set_Heat_Power(float pwm);
 void IMU_Temp_PID_Init(void);
 void IMU_Update_Task(void);

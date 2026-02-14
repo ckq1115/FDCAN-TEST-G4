@@ -9,6 +9,8 @@
 #define FDCAN_TEST_G4_MAHONY_FILTER_H
 
 #include <math.h>
+#include "All_define.h"
+#include "All_Init.h"
 /// 圆周率
 #define PI 3.14159265358979f
 /// 角度转弧度
@@ -51,7 +53,7 @@ struct MAHONY_FILTER_t
 
     // 输出参数
     float pitch, roll, yaw;     // 俯仰/横滚/偏航角
-    float YawTotalAngle;          // 累积偏航角
+    float last_yaw,YawTotalAngle;          // 累积偏航角
     // 函数指针
     void (*mahony_update)(struct MAHONY_FILTER_t *mahony_filter,
                           float gx, float gy, float gz,

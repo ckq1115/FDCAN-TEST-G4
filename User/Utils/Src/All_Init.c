@@ -8,13 +8,6 @@ uint8_t DBUS_RX_DATA[18];
 DBUS_Typedef C_DBUS = { 0 };
 DBUS_UNION_Typdef C_DBUS_UNION = { 0 };
 
-//IMU
-
-
-
-
-
-
 void All_Init() {
     DWT_Init(170);
     /* 清除串口错误标志 */
@@ -29,9 +22,9 @@ void All_Init() {
     (void)tmp;
     __HAL_DMA_DISABLE_IT(huart3.hdmarx, DMA_IT_HT);//关闭 DMA 半传中断
     HAL_UARTEx_ReceiveToIdle_DMA(&huart3,DBUS_RX_DATA,18);//启动 DMA + IDLE
-    FDCAN1_Config();
-    FDCAN2_Config();
-    FDCAN3_Config();
+    FDCAN_Config(&hfdcan1, FDCAN_RX_FIFO0);
+    FDCAN_Config(&hfdcan2, FDCAN_RX_FIFO1);
+    FDCAN_Config(&hfdcan3, FDCAN_RX_FIFO0);
     WS2812_Init();
 
     IMU_Gyro_Calib_Initiate();

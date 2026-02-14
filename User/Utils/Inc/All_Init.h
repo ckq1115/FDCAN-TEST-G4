@@ -8,21 +8,22 @@
 #include <string.h>
 #include "main.h"
 #include "DBUS.h"
-#include "Motor.h"
+#include "DJI_Motor.h"
+#include "DM_Motor.h"
 #include "BSP_ICM42688P.h"
 #include "tim.h"
 #include "usart.h"
 #include "WS2812.h"
 #include "controller.h"
-#include "IMU_Task.h"
 #include "QuaternionEKF.h"
-#include "cmsis_os2.h"
 #include "Vofa.h"
 #include "spi.h"
 #include "task.h"
 #include "mahony_filter.h"
 #include "user_lib.h"
 #include "IMU_Task.h"
+#include "All_define.h"
+#include "cmsis_os2.h"
 
 extern uint8_t DBUS_RX_DATA[18];
 extern DBUS_Typedef C_DBUS;

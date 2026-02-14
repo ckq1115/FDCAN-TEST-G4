@@ -103,16 +103,29 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  _siccmram = LOADADDR(.ccmram);
-    .ccmram :
-    {
-      . = ALIGN(4);
-      _sccmram = .;
-      *(.ccmram)
-      *(.ccmram*)
-      . = ALIGN(4);
-      _eccmram = .;
-    } >CCMRAM AT> FLASH
+  /* CCMRAM 数据段（放变量）—— 启动时从Flash复制到CCMRAM */
+  _siccmram_data = LOADADDR(.ccmram.data);
+  .ccmram.data :
+  {
+    . = ALIGN(4);
+    _sccmram_data = .;       /* CCM数据段起始地址 */
+    *(.ccmram.data)          /* 匹配变量的段属性 */
+    *(.ccmram.data.*)        /* 兼容通配符写法 */
+    . = ALIGN(4);
+    _eccmram_data = .;       /* CCM数据段结束地址 */
+  } >CCMRAM AT> FLASH
+
+  /* CCMRAM 代码段（放函数）—— 启动时从Flash复制到CCMRAM */
+  _siccmram_text = LOADADDR(.ccmram.text);
+  .ccmram.text :
+  {
+    . = ALIGN(8);
+    _sccmram_text = .;
+    *(.ccmram.text)
+    *(.ccmram.text.*)
+    . = ALIGN(8);
+    _eccmram_text = .;
+  } >CCMRAM AT> FLASH
 
   .ARM.extab (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {

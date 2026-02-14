@@ -52,7 +52,7 @@ osThreadId_t IMUTaskHandle;
 const osThreadAttr_t IMUTask_attributes = {
   .name = "IMUTask",
   .priority = (osPriority_t) osPriorityHigh,
-  .stack_size = 512 * 4
+  .stack_size = 256 * 4
 };
 /* Definitions for MotorTask */
 osThreadId_t MotorTaskHandle;

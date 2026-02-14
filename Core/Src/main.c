@@ -29,6 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "All_Init.h"
+#include "All_Task.h"
 #include "arm_math.h"
 /* USER CODE END Includes */
 
@@ -38,22 +39,42 @@
   * @brief 手动初始化 CCMRAM 数据段
   */
 void CCMRAM_Init(void) {
-  // 1. 确保 FPU 已开启（G4 必须开启后才能处理某些含浮点指令的代码段）
+  // 1. 开启FPU并刷新
   SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
-  __DSB(); // 确保指令生效
+  __DSB(); __ISB();
 
-  extern uint32_t _siccmram, _sccmram, _eccmram;
-
-  // 2. 只有当地址不相等时才拷贝（防止重入）
-  if (&_sccmram != &_siccmram) {
-    uint32_t *pSrc = &_siccmram;
-    uint32_t *pDest = &_sccmram;
-
-    while (pDest < &_eccmram) {
+  // 2. 拷贝CCM数据段（变量）—— 原有逻辑保留
+  extern uint32_t _siccmram_data, _sccmram_data, _eccmram_data;
+  const uint32_t CCM_MAX_LEN = 8192;
+  uint32_t copy_len = (uint32_t)&_eccmram_data - (uint32_t)&_sccmram_data;
+  if (copy_len > CCM_MAX_LEN * 4 || (uint32_t)&_sccmram_data < 0x10000000) {
+    return;
+  }
+  if (&_sccmram_data != &_siccmram_data) {
+    uint32_t *pSrc = &_siccmram_data;
+    uint32_t *pDest = &_sccmram_data;
+    uint32_t i = 0;
+    while (pDest < &_eccmram_data && i < CCM_MAX_LEN) {
       *pDest++ = *pSrc++;
+      i++;
     }
   }
-  __ISB(); // 刷新指令流水线，确保搬运的代码可以立即执行
+
+  // 3. 拷贝CCM函数段（指令）—— 新增：按字节拷贝，避免拆分指令
+  extern uint32_t _siccmram_text, _sccmram_text, _eccmram_text;
+  uint8_t *pSrc_text = (uint8_t*)&_siccmram_text;
+  uint8_t *pDest_text = (uint8_t*)&_sccmram_text;
+  uint32_t copy_len_text = (uint32_t)&_eccmram_text - (uint32_t)&_sccmram_text;
+  if (copy_len_text > CCM_MAX_LEN * 4 || (uint32_t)&_sccmram_text < 0x10000000) {
+    return;
+  }
+  if (pDest_text != pSrc_text) {
+    for (uint32_t i=0; i<copy_len_text; i++) {
+      *pDest_text++ = *pSrc_text++;
+    }
+  }
+
+  __ISB(); // 刷新指令流水线
 }
 /* USER CODE END PTD */
 
@@ -110,7 +131,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  CCMRAM_Init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -127,13 +148,6 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM20_Init();
   /* USER CODE BEGIN 2 */
-#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-  SCB->CPACR |= ((3UL << (10*2)) | (3UL << (11*2)));  // 设置 CP10 和 CP11 为完全访问
-  FPU->FPDSCR |= FPU_FPDSCR_FZ_Msk;               // 开启强制清零模式，防止极小值拖慢速度
-  __DSB();
-  __ISB();
-#endif
-  CCMRAM_Init(); // 初始化 CCMRAM 数据段
   All_Init();
   /* USER CODE END 2 */
 

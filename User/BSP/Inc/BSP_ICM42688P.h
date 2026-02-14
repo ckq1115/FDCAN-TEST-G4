@@ -164,4 +164,6 @@ uint8_t ICM42688_IsDataReady(void);
 void ICM42688_Config_FIFO(uint8_t enable);
 void ICM42688_SetFormat(ODR_t a_odr, AccelFS_t a_fsr, ODR_t g_odr, GyroFS_t g_fsr);
 void ICM42688_read(float gyro[3], float accel[3], float *temperature);
+void ICM42688_Read_Fast(float gyro[3], float accel[3], float *temperature);
+
 #endif //FDCAN_TEST_G4_BSP_ICM42688P_H

@@ -12,49 +12,76 @@ project(${CMAKE_PROJECT_NAME})
 enable_language(C ASM)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
+# 2. 调试/发布模式差异化配置
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
-# 强制开启优化选项
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_options(-Og) # -Og 是专门为调试设计的优化，比 -O0 快得多
-else()
-    add_compile_options(-Ofast) # 生产环境追求极致速度
-endif()
+
+# --------------------------
+# Debug/Release 差异化优化
+# --------------------------
+# Debug：优先保证调试性，关闭LTO，保留完整调试信息，轻度优化
+set(CMAKE_C_FLAGS_DEBUG "-Og -g3 -fno-omit-frame-pointer -fno-lto")
+# Release：极致性能，利用FPU/DSP，开启LTO和循环优化，兼顾精度
+set(CMAKE_C_FLAGS_RELEASE "-O3 -ffast-math -funroll-loops -frename-registers -finline-small-functions")
+
 # ------------------------------------------------------------------------------
-# 2. 硬件架构参数 (核心配置)
-# STM32G473 使用 Cortex-M4F，FPU 类型为 fpv4-sp-d16
+# 3. 硬件架构参数
 # ------------------------------------------------------------------------------
 set(CPU_FLAGS
         -mcpu=cortex-m4
         -mthumb
         -mfpu=fpv4-sp-d16
-        -mfloat-abi=hard
-        -flto
+        -mfloat-abi=hard    # 硬浮点ABI，最大化FPU效率
 )
 
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/DSP/Lib/GCC)
 
-# 3. 编译选项
+# ------------------------------------------------------------------------------
+# 4. 编译选项
+# ------------------------------------------------------------------------------
 add_compile_options(
         ${CPU_FLAGS}
+        # 基础警告（保留关键，关闭无关）
         -Wall
         -Wextra
+        -Wno-comment          # 关闭注释嵌套警告
+        -Wno-unused-parameter # 关闭FreeRTOS未使用参数警告
+        -Wno-unused-but-set-variable # 关闭未使用变量警告
+        -Werror=implicit-function-declaration # 隐式声明转为错误（防止调用未声明函数）
+        -Werror=incompatible-pointer-types    # 指针类型不匹配转为错误（避免HardFault）
+        # 代码优化
         -fdata-sections
         -ffunction-sections
-)
-
-# 4. 链接选项 (修复重复报错的关键)
-# 注意：我们去掉了 -specs=nano.specs，因为它在 stm32cubemx 子目录中通常已经被定义了
-add_link_options(
-        ${CPU_FLAGS}
-        -Wl,--gc-sections
-        -Wl,--print-memory-usage
-        -flto
+        # DSP/FPU 优化
+        -DARM_MATH_CM4
+        -D__FPU_PRESENT=1U
+        -DARM_MATH_MATRIX_CHECK=0  # 关闭DSP库矩阵越界检查（提升速度）
+        -DARM_MATH_ROUNDING=0      # 关闭DSP库舍入（提升速度）
 )
 
 # ------------------------------------------------------------------------------
-# 5. 可执行文件定义
+# 5. 链接选项（精细化控制 + 性能优化）
+# ------------------------------------------------------------------------------
+add_link_options(
+        ${CPU_FLAGS}
+        -Wl,--gc-sections                     # 移除未使用段
+        -Wl,--print-memory-usage              # 打印内存占用
+        -Wl,--relax                           # 链接松弛（减少代码大小，提升速度）
+        -Wl,--sort-common=descending          # 排序公共符号（减少内存碎片）
+        # LTO：仅Release开启，Debug关闭（通过CMAKE_EXE_LINKER_FLAGS控制）
+)
+
+# --------------------------
+# 关键修改2：LTO 差异化控制
+# --------------------------
+# Debug：关闭LTO（避免调试符号混淆）
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-fno-lto")
+# Release：开启LTO并自动并行（提升编译速度+代码优化）
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto=auto")
+
+# ------------------------------------------------------------------------------
+# 6. 可执行文件定义
 # ------------------------------------------------------------------------------
 add_executable(${CMAKE_PROJECT_NAME}
         User/App/Src/All_Task.c
@@ -85,9 +112,16 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Algorithm/Src/mahony_filter.c
         User/Utils/Inc/All_Init.h
         User/Utils/Src/All_Init.c
+        User/Utils/Inc/All_define.h
+        # 启动文件
+        startup_stm32g473xx.s
+        User/Device/Inc/DJI_Motor.h
+        User/Device/Inc/DM_Motor.h
+        User/Device/Src/DJI_Motor.c
+        User/Device/Src/DM_Motor.c
 )
 
-# 添加用户源文件 (请根据实际文件增减)
+# 添加用户源文件
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         Core/Src/main.c
         Core/Src/gpio.c
@@ -98,9 +132,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         Core/Src/sysmem.c
         Core/Src/syscalls.c
         User/BSP/Src/BSP_FDCAN.c
-        User/Device/Src/Motor.c
-        # 启动文件通常在 stm32cubemx 内部处理，或者手动添加如下：
-        startup_stm32g473xx.s
 )
 
 # 添加包含路径
@@ -111,40 +142,37 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         User/Device/Inc
         User/Algorithm/Inc
         User/Utils/Inc
-        # --- 新增 DSP 相关路径 ---
         Drivers/CMSIS/Include
         Drivers/CMSIS/DSP/Include
         Drivers/CMSIS/Device/ST/STM32G4xx/Include
 )
 
 # ------------------------------------------------------------------------------
-# 6. 链接 STM32CubeMX 生成的 HAL 库
+# 7. 链接 STM32CubeMX 生成的 HAL 库
 # ------------------------------------------------------------------------------
 add_subdirectory(cmake/stm32cubemx)
 
 target_link_libraries(${PROJECT_NAME}
         stm32cubemx
-        # --- 新增 DSP 静态库和数学库 ---
-        arm_cortexM4lf_math
-        m
+        arm_cortexM4lf_math  # DSP库
+        m                    # 数学库
 )
 
 # ------------------------------------------------------------------------------
-# [修改] 7. 宏定义 (添加 DSP 所需宏)
+# 8. 宏定义（强化DSP/FPU）
 # ------------------------------------------------------------------------------
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
         STM32G473xx
         USE_HAL_DRIVER
-        # --- 新增 DSP 宏 ---
         ARM_MATH_CM4
         __FPU_PRESENT=1U
+        HAL_ASSERT_DISABLE=1
+        # 开启DSP库快速模式（牺牲精度换速度）
+        # ARM_MATH_FAST_MATH=1
 )
 
-# 移除冗余库依赖（防止某些 GCC 版本链接冲突）
-list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
-
 # ------------------------------------------------------------------------------
-# 8. 生成辅助文件 (Hex, Bin)
+# 9. 生成辅助文件 (Hex, Bin)
 # ------------------------------------------------------------------------------
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin)

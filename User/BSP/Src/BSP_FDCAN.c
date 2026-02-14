@@ -1,146 +1,63 @@
 #include "BSP-FDCAN.h"
 
-void FDCAN1_Config(void)
+/**
+ * @brief 通用 FDCAN 过滤器与启动配置
+ * @param hfdcan FDCAN句柄
+ * @param fifo   使用的 FIFO (FDCAN_RX_FIFO0 或 FDCAN_RX_FIFO1)
+ */
+void FDCAN_Config(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo)
 {
-    FDCAN_FilterTypeDef sFilterConfig;
-    /* Configure Rx filter */
-    sFilterConfig.IdType = FDCAN_STANDARD_ID;//扩展ID不接收
+    FDCAN_FilterTypeDef sFilterConfig = {0};
+
+    /* 1. 配置过滤器：默认接收所有标准帧到指定的 FIFO */
+    sFilterConfig.IdType = FDCAN_STANDARD_ID;
     sFilterConfig.FilterIndex = 0;
     sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    sFilterConfig.FilterID1 = 0x00000000; //
-    sFilterConfig.FilterID2 = 0x00000000; //
-    if(HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* 全局过滤设置 */
-    /* 接收到消息ID与标准ID过滤不匹配，不接受 */
-    /* 过滤标准ID远程帧 */
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* 开启RX FIFO0的新数据中断 */
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* Start the FDCAN module */
-    if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    sFilterConfig.FilterConfig = (fifo == FDCAN_RX_FIFO0) ? FDCAN_FILTER_TO_RXFIFO0 : FDCAN_FILTER_TO_RXFIFO1;
+    sFilterConfig.FilterID1 = 0x000;
+    sFilterConfig.FilterID2 = 0x000; // 掩码为0表示接收所有ID
+
+    if (HAL_FDCAN_ConfigFilter(hfdcan, &sFilterConfig) != HAL_OK) Error_Handler();
+
+    /* 2. 全局过滤：拒绝远程帧，拒绝不匹配的扩展帧 */
+    if (HAL_FDCAN_ConfigGlobalFilter(hfdcan, FDCAN_REJECT, FDCAN_REJECT,
+                                    FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK) Error_Handler();
+
+    /* 3. 开启中断：根据传入的 FIFO 开启对应的中断源 */
+    uint32_t it_source = (fifo == FDCAN_RX_FIFO0) ? FDCAN_IT_RX_FIFO0_NEW_MESSAGE : FDCAN_IT_RX_FIFO1_NEW_MESSAGE;
+    if (HAL_FDCAN_ActivateNotification(hfdcan, it_source, 0) != HAL_OK) Error_Handler();
+
+    /* 4. 启动外设 */
+    if (HAL_FDCAN_Start(hfdcan) != HAL_OK) Error_Handler();
 }
 
-void FDCAN2_Config(void)
-{
-    FDCAN_FilterTypeDef sFilterConfig;
-    /* Configure Rx filter */
-    sFilterConfig.IdType =  FDCAN_STANDARD_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
-    sFilterConfig.FilterID1 = 0x00000000;
-    sFilterConfig.FilterID2 = 0x00000000;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan2, &sFilterConfig) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* Configure global filter:
-    Filter all remote frames with STD and EXT ID
-    Reject non matching frames with STD ID and EXT ID */
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan2, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* Activate Rx FIFO 1 new message notification on both FDCAN instances */
-    if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    if (HAL_FDCAN_Start(&hfdcan2) != HAL_OK)
-    {
-        Error_Handler();
-    }
+/**
+ * @brief 将字节长度转换为 FDCAN 的 DLC 宏
+ */
+static uint32_t BytesToDLC(uint32_t len) {
+    if (len <= 8)  return len << 16; // 0-8 字节规律一致
+    if (len <= 12) return FDCAN_DLC_BYTES_12;
+    if (len <= 16) return FDCAN_DLC_BYTES_16;
+    if (len <= 20) return FDCAN_DLC_BYTES_20;
+    if (len <= 24) return FDCAN_DLC_BYTES_24;
+    if (len <= 32) return FDCAN_DLC_BYTES_32;
+    if (len <= 48) return FDCAN_DLC_BYTES_48;
+    return FDCAN_DLC_BYTES_64;
 }
 
-void FDCAN3_Config(void)
+uint8_t FDCAN_Send_Msg(FDCAN_HandleTypeDef *hfdcan, uint32_t id, uint8_t *data, uint32_t len)
 {
-    FDCAN_FilterTypeDef sFilterConfig;
-    /* Configure Rx filter */
-    sFilterConfig.IdType =  FDCAN_STANDARD_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    sFilterConfig.FilterID1 = 0x00000000;
-    sFilterConfig.FilterID2 = 0x00000000;
-    if (HAL_FDCAN_ConfigFilter(&hfdcan3, &sFilterConfig) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* Configure global filter:
-    Filter all remote frames with STD and EXT ID
-    Reject non matching frames with STD ID and EXT ID */
-    if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan3, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /* Activate Rx FIFO 0 new message notification on both FDCAN instances */
-    if (HAL_FDCAN_ActivateNotification(&hfdcan3, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    if (HAL_FDCAN_Start(&hfdcan3) != HAL_OK)
-    {
-        Error_Handler();
-    }
-}
+    FDCAN_TxHeaderTypeDef TxHeader = {
+        .Identifier = id,
+        .IdType = FDCAN_STANDARD_ID,
+        .TxFrameType = FDCAN_DATA_FRAME,
+        .DataLength = BytesToDLC(len), // 查表转换
+        .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+        .BitRateSwitch = FDCAN_BRS_OFF,
+        .FDFormat = (len > 8) ? FDCAN_FD_CAN : FDCAN_CLASSIC_CAN, // 自动切换 FD 模式
+        .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+        .MessageMarker = 0
+    };
 
-uint8_t canx_send_data(FDCAN_HandleTypeDef *hcan, uint16_t id, uint8_t *data, uint32_t len)
-{
-    FDCAN_TxHeaderTypeDef TxHeader;
-
-    TxHeader.Identifier = id;                 // CAN ID
-    TxHeader.IdType =  FDCAN_STANDARD_ID ;
-    TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-    if(len<=8)
-    {
-        TxHeader.DataLength = len<<16;     // 发送长度：8byte
-        TxHeader.DataLength = FDCAN_DLC_BYTES_8;//群里是推荐这么用
-    }
-    else  if(len==12)
-    {
-        TxHeader.DataLength =FDCAN_DLC_BYTES_12;
-    }
-    else  if(len==16)
-    {
-        TxHeader.DataLength =FDCAN_DLC_BYTES_16;
-    }
-    else  if(len==20)
-    {
-        TxHeader.DataLength =FDCAN_DLC_BYTES_20;
-    }
-    else  if(len==24)
-    {
-        TxHeader.DataLength =FDCAN_DLC_BYTES_24;
-    }else  if(len==48)
-    {
-        TxHeader.DataLength =FDCAN_DLC_BYTES_48;
-    }else  if(len==64)
-    {
-        TxHeader.DataLength =FDCAN_DLC_BYTES_64;
-    }
-    TxHeader.ErrorStateIndicator =  FDCAN_ESI_ACTIVE;
-    TxHeader.BitRateSwitch = FDCAN_BRS_OFF;//比特率切换关闭，不适用于经典CAN
-    TxHeader.FDFormat =  FDCAN_CLASSIC_CAN;            // CANFD
-    TxHeader.TxEventFifoControl =  FDCAN_NO_TX_EVENTS;
-    TxHeader.MessageMarker = 0;//消息标记
-    // 发送CAN指令
-    if(HAL_FDCAN_AddMessageToTxFifoQ(hcan, &TxHeader, data) != HAL_OK)
-    {
-        // 发送失败处理
-        Error_Handler();
-    }
-    return 0;
+    return (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &TxHeader, data) == HAL_OK) ? 0 : 1;
 }
