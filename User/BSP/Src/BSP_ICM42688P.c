@@ -5,6 +5,12 @@
 
 #include <tgmath.h>
 
+#include "FreeRTOSConfig.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "portmacro.h"
+#include "projdefs.h"
+
 float acc_res = 0;
 float gyr_res = 0;
 static uint8_t current_bank = 0xFF;
@@ -46,9 +52,9 @@ static uint8_t ReadReg(uint16_t reg) {
 }
 
 uint8_t ICM42688_Init(void) {
-    // 1. 软复位
+    // 1. 软复位：替换 HAL_Delay(100) 为 FreeRTOS 延时
     WriteReg(REG_DEVICE_CONFIG, 0x01);
-    HAL_Delay(100);
+    vTaskDelay(pdMS_TO_TICKS(100));  // 替换 HAL_Delay(100)
 
     // 2. ID 校验
     if (ReadReg(REG_WHO_AM_I) != ICM_WHO_AM_I_VAL) return 1;
@@ -61,7 +67,7 @@ uint8_t ICM42688_Init(void) {
 
     // 4. 电源管理：开启陀螺仪和加速度计的全性能模式 (LN Mode)
     WriteReg(REG_PWR_MGMT0, 0x0F);
-    HAL_Delay(50);
+    vTaskDelay(pdMS_TO_TICKS(50));   // 替换 HAL_Delay(50)
 
     // 5. 默认配置量程和频率 (1kHz, 16g, 2000dps)
     ICM42688_SetFormat(ODR_1kHz, ACCEL_FS_8G, ODR_1kHz, GYRO_FS_2000DPS);

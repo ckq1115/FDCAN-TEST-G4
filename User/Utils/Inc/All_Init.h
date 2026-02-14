@@ -24,11 +24,16 @@
 #include "IMU_Task.h"
 #include "All_define.h"
 #include "cmsis_os2.h"
+#include "All_Motor.h"
+#include "Power_CAP.h"
+#include "System_Status.h"
 
 extern uint8_t DBUS_RX_DATA[18];
 extern DBUS_Typedef C_DBUS;
 extern DBUS_UNION_Typdef C_DBUS_UNION;
 
+extern MOTOR_Typdef All_Motor;
 
+extern ROOT_STATUS_Typedef ROOT_Status;
 void All_Init(void);
 #endif //FDCAN_TEST_G4_ALL_INIT_H

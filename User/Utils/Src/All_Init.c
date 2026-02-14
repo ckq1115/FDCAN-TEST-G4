@@ -8,6 +8,8 @@ uint8_t DBUS_RX_DATA[18];
 DBUS_Typedef C_DBUS = { 0 };
 DBUS_UNION_Typdef C_DBUS_UNION = { 0 };
 
+CCM_DATA MOTOR_Typdef All_Motor;
+CCM_DATA ROOT_STATUS_Typedef ROOT_Status;
 void All_Init() {
     DWT_Init(170);
     /* 清除串口错误标志 */
@@ -26,7 +28,6 @@ void All_Init() {
     FDCAN_Config(&hfdcan2, FDCAN_RX_FIFO1);
     FDCAN_Config(&hfdcan3, FDCAN_RX_FIFO0);
     WS2812_Init();
-
     IMU_Gyro_Calib_Initiate();
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
@@ -34,4 +35,5 @@ void All_Init() {
     __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 50);
     HAL_Delay(500);
     __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 0);
+    HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
 }

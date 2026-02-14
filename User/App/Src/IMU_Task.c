@@ -10,21 +10,18 @@
 
 /*==================== 温控与校准常量 ====================*/
 #define IMU_TARGET_TEMP        40.0f     // 目标温度 (℃)
-#define TEMP_STABLE_ERR        0.35f     // 稳定判据误差 (±0.3℃)
+#define TEMP_STABLE_ERR        0.35f     // 稳定判据误差
 #define TEMP_STABLE_TIME_MS    1500      // 稳定持续时间 (ms)
-#define GYRO_CALIB_SAMPLES     1500      // 陀螺仪采样样本数
+#define GYRO_CALIB_SAMPLES     1000      // 陀螺仪采样样本数
 
-/*==================== PID 参数管理 ====================*/
 typedef struct {
     float kp;
     float ki;
     float kd;
 } PID_Params_t;
 
-// 默认基准参数（作为模糊控制的基座）
 static const PID_Params_t base_pid = {70.0f, 0.12f, 100.0f};
 
-// 实时运行参数
 CCM_DATA static PID_Params_t current_pid;
 
 #define HEATER_PWM_MAX         1000.0f
@@ -38,12 +35,10 @@ CCM_DATA IMU_Data_t IMU_Data = {
     .accel_scale = {0.9991735142f, 1.0005724099f, 0.9983936339f}
 };
 
-/*==================== 内部私有变量 ====================*/
 static CCM_DATA uint32_t temp_stable_tick = 0;// 温度稳定计时起点
 static CCM_DATA uint16_t imu_pid_cnt      = 0;//PID控制计数器，用于10ms分频执行PID计算
 static CCM_DATA uint16_t gyro_calib_cnt   = 0;//陀螺仪校准计数
 static CCM_DATA float heater_pwm_out   = 0;// 当前加热片PWM输出值
-/*==================== 硬件底层接口 ====================*/
 
 /**
  * @brief 设置加热片PWM占空比
@@ -54,8 +49,6 @@ void Set_Heater_PWM(float pwm)
     pwm = (pwm < 0.0f) ? 0.0f : (pwm > HEATER_PWM_MAX) ? HEATER_PWM_MAX : pwm;
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (uint32_t)pwm);
 }
-
-/*==================== 初始化函数 ====================*/
 
 /**
  * @brief 初始化PID结构体与模糊规则
@@ -98,7 +91,7 @@ void IMU_Temp_Control_Init(void)
 void IMU_Update_Task(void)
 {
     float now_temp = IMU_Data.temp;
-
+    IMU_Status_Check();// 监测IMU数据，若不正常则进入错误状态
     if (imu_ctrl_state != TEMP_INIT)
     {
         if (++imu_pid_cnt >= 10)
@@ -121,8 +114,8 @@ void IMU_Update_Task(void)
             imu_pid_cnt = 0;
         }
     }
-    WS2812_SetPixel(3, 255, 0, 0);
-    /*-------------------- 2. 控制状态机 --------------------*/
+
+
     switch (imu_ctrl_state)
     {
         case TEMP_INIT:
@@ -148,6 +141,7 @@ void IMU_Update_Task(void)
             {
                 if (HAL_GetTick() - temp_stable_tick > TEMP_STABLE_TIME_MS)
                 {
+                    HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
                     imu_ctrl_flag.temp_stable = 1;
                     imu_ctrl_state = GYRO_CALIB;
                 }
@@ -180,6 +174,7 @@ void IMU_Update_Task(void)
 
         case FUSION_RUN:
             WS2812_SetPixel(0, 0, 60, 0);    // 绿色：正常运行
+            //HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
             // 减去静态零偏
             IMU_Data.gyro[0] -= IMU_Data.gyro_correct[0];
             IMU_Data.gyro[1] -= IMU_Data.gyro_correct[1];
@@ -218,11 +213,13 @@ void IMU_Update_Task(void)
             IMU_Data.YawTotalAngle = mahony_filter.YawTotalAngle;
             imu_ctrl_flag.fusion_enabled = 1;
             break;
-
+        case ERROR_STATE:
+            Set_Heater_PWM(0); // 关闭加热片
+            WS2812_SetPixel(0, 255, 0, 0); // 红色表示错误
+            break;
         default:
             break;
     }
-    // 更新灯效显示
 
 }
 
@@ -267,4 +264,37 @@ void IMU_Gyro_Calib_Initiate(void)
     imu_ctrl_flag.gyro_calib_done = 0;// 重置校准完成标志
     gyro_calib_cnt = 0;// 重置计数器
     IMU_Data.gyro_correct[0] = IMU_Data.gyro_correct[1] = IMU_Data.gyro_correct[2] = 0.0f;
+}
+
+/**
+ * @brief IMU数据状态检查，包含静态零值检测、数据卡死检测和温度边界保护
+ * @note  该函数在每次IMU数据更新后调用，若检测到异常则将状态机切换到ERROR_STATE
+ */
+void IMU_Status_Check(void) {
+        // 静态变量用于卡死检测
+    static float last_sum = 0;
+    static uint16_t stuck_cnt = 0;
+
+    if ((fabsf(IMU_Data.accel[0]) < 1e-6f && fabsf(IMU_Data.accel[1]) < 1e-6f && fabsf(IMU_Data.accel[2]) < 1e-6f)
+    ||(fabsf(IMU_Data.gyro[0]) < 1e-6f && fabsf(IMU_Data.gyro[1]) < 1e-6f && fabsf(IMU_Data.gyro[2]) < 1e-6f))
+    {
+        imu_ctrl_state = ERROR_STATE;
+    }
+    // 数据卡死检测，将七个数据求和，若连续100次采样完全一致，判定为传感器内部逻辑死锁
+    float sum = 0;
+    for(int i=0; i<3; i++) {
+        sum += IMU_Data.accel[i] + IMU_Data.gyro[i];
+    }
+    if (fabsf(sum - last_sum) < 1e-7f) {
+        if (++stuck_cnt > 100) {
+            imu_ctrl_state = ERROR_STATE;
+        }
+    } else {
+        stuck_cnt = 0;
+        last_sum = sum;
+    }
+        // 5. 温度边界保护
+    if (IMU_Data.temp > 50.0f || IMU_Data.temp < 0.0f) {
+        imu_ctrl_state = ERROR_STATE;
+    }
 }

@@ -21,6 +21,8 @@ typedef struct
     float RB;
 }Speed_Solve;
 extern Speed_Solve Omni;
+
+extern uint16_t adc_dma_buffer[2];
 void speed_solve(void);
 
 void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);

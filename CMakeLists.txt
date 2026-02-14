@@ -119,6 +119,11 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Device/Inc/DM_Motor.h
         User/Device/Src/DJI_Motor.c
         User/Device/Src/DM_Motor.c
+        User/App/Src/System_Status.c
+        User/App/Inc/System_Status.h
+        User/Utils/Inc/All_Motor.h
+        User/Device/Inc/Power_CAP.h
+        User/Device/Src/Power_CAP.c
 )
 
 # 添加用户源文件

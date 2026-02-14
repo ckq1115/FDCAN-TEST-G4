@@ -4,7 +4,6 @@
 #include "DJI_Motor.h"
 #include "All_define.h"
 
-CCM_DATA All_Motor_TypeDef All_Motor;
 CCM_DATA ALL_POWER_RX All_Power;
 
 /**

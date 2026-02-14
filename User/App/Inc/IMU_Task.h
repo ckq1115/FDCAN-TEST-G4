@@ -18,6 +18,7 @@ typedef enum
     TEMP_STABLE,     // 温度稳定状态
     GYRO_CALIB,      // 陀螺仪校准阶段
     FUSION_RUN,      // 姿态融合正常运行状态
+    ERROR_STATE      // 错误状态（如温控失败、校准异常等）
 } IMU_CTRL_STATE_e;
 
 typedef struct
@@ -58,5 +59,5 @@ void IMU_Temp_PID_Init(void);
 void IMU_Update_Task(void);
 void IMU_Gyro_Zero_Calibration_Task(void);
 void IMU_Gyro_Calib_Initiate(void);
-extern float pitch,roll,yaw;
+void IMU_Status_Check(void);
 #endif //FDCAN_TEST_G4_IMU_TASK_H

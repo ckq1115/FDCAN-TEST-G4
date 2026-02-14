@@ -86,6 +86,7 @@ __attribute__((used)) void* dummy_keep = (void*)vTaskSwitchContext;
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+/* 私有变量 */
 
 /* USER CODE END PM */
 
@@ -254,6 +255,7 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+    HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
   }
   /* USER CODE END Error_Handler_Debug */
 }

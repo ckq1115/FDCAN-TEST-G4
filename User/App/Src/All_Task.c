@@ -4,14 +4,15 @@
 #include "All_Task.h"
 #include <stdint.h>
 
+#include "main.h"
+
 void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     static uint32_t last_trigger_cnt = 0;
     float actual_period;
     if (htim->Instance == TIM4) {
         actual_period = DWT_GetDeltaT(&last_trigger_cnt);
-        WS2812_UpdateBreathing(0, 2.0f);
-        WS2812_UpdateBreathing(3, 0.2f);
-        WS2812_Submit();
+        (imu_ctrl_state == ERROR_STATE) ? WS2812_UpdateBreathing(0, 0.2f) : WS2812_UpdateBreathing(0, 2.0f);
+        System_Root(&ROOT_Status, &C_DBUS, &All_Motor, NULL);
         //DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
     }
 }
@@ -25,8 +26,6 @@ void IMU_Task(void *argument)
     (void)argument;
     portTickType currentTimeIMU = xTaskGetTickCount();
     ICM42688_Init();
-    uint32_t last_wake_time = DWT->CYCCNT; // 初始化记录时间戳
-
     for(;;)
     {
         imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
@@ -53,13 +52,13 @@ void Motor_Task(void *argument)
     //motor_mode(&hfdcan1,1,0x100,0xfc);
     for(;;)
     {
-        /*VOFA_justfloat(
+        VOFA_justfloat(
             dt_s,
             IMU_Data.pitch,
             IMU_Data.roll,
             IMU_Data.yaw,
             IMU_Data.YawTotalAngle,
-            0,imu_period_s,imu_operate_us,0,0);*/
+            imu_period_s,imu_operate_us,0,0,0);
         osDelay(1);
     }
 }
@@ -75,87 +74,62 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
         }
     }
 }
-/*void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-    FDCAN_RxHeaderTypeDef RxHeader1;
-    uint8_t g_Can1RxData[64];
-
-    FDCAN_RxHeaderTypeDef RxHeader3;
-    uint8_t g_Can3RxData[64];
-
-    if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0)
+        return;
+    FDCAN_RxHeaderTypeDef rx;
+    uint8_t data[8];
+    while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0)
     {
-        if(hfdcan->Instance == FDCAN1)
+        HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx, data);
+        if (hfdcan->Instance == FDCAN1)
         {
-            /* Retrieve Rx messages from RX FIFO0 #1#
-            memset(g_Can1RxData, 0, sizeof(g_Can1RxData));	//接收前先清空数组
-            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, g_Can1RxData);
-            switch(RxHeader1.Identifier)
+            switch (rx.Identifier)
             {
-                /*case 0x601:
-                    CAN_POWER_Rx(&All_Power.P1,g_Can1RxData);
-                case 0x602:
-                    CAN_POWER_Rx(&All_Power.P2,g_Can1RxData);
-                case 0x603:
-                    CAN_POWER_Rx(&All_Power.P3,g_Can1RxData);
-                case 0x604:
-                    CAN_POWER_Rx(&All_Power.P4,g_Can1RxData);#1#
-                case 0x207:
-                    //MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA,g_Can1RxData);
+                case 0x207: // MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA, data);
                     break;
-                case 0x00:
-                    //DM_FBdata(&All_Motor.DM3507_1, g_Can1RxData);
+                case 0x000: // DM_FBdata(&All_Motor.DM3507_1, data);
+                    break;
+                case 0x605: CAN_POWER_Rx(&All_Power.P5, data);
+                    break;
+                default:
                     break;
             }
         }
-
-        if(hfdcan->Instance == FDCAN3)
+        else if (hfdcan->Instance == FDCAN3)
         {
-            /* Retrieve Rx messages from RX FIFO0 #1#
-            memset(g_Can3RxData, 0, sizeof(g_Can3RxData));
-            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader3, g_Can3RxData);
-            switch(RxHeader3.Identifier)
+            switch (rx.Identifier)
             {
-                case  0x201:
+                case 0x201:
                     break;
-                case 0x207:
-                    //MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA,g_Can3RxData);
-                        break;
-                case 0x605:
-                    CAN_POWER_Rx(&All_Power.P5,g_Can3RxData);
+                case 0x207: // MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA, data);
+                    break;
+                case 0x605: CAN_POWER_Rx(&All_Power.P5, data);
+                    break;
+                default:
                     break;
             }
         }
     }
 }
 
+
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 {
-    FDCAN_RxHeaderTypeDef RxHeader2;
-    uint8_t g_Can2RxData[64];
-
-    if((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
+    FDCAN_RxHeaderTypeDef rx;
+    uint8_t data[8];
+    while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0)
     {
-        if(hfdcan->Instance == FDCAN2)
+        HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx, data);
+        switch (rx.Identifier)
         {
-            /* Retrieve Rx messages from RX FIFO0 #1#
-            memset(g_Can2RxData, 0, sizeof(g_Can2RxData));
-            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &RxHeader2, g_Can2RxData);
-            switch(RxHeader2.Identifier)
-            {
-                case 0x201:
-
-                    break;
-                case 0x202:
-
-                    break;
-                case 0x203:
-
-                    break;
-                case 0x207:
-                    //MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA,g_Can2RxData);
-                    break;
-            }
+            case 0x207: // GM6020_Decode(&All_Motor.GM6020_1, data);
+                break;
+            case 0x605: CAN_POWER_Rx(&All_Power.P5, data);
+                break;
+            default:
+                break;
         }
     }
-}*/
+}

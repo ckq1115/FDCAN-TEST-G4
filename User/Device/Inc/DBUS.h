@@ -55,8 +55,6 @@
 #define RUI_KeyBoard_Shift_Lock RUI_V_DBUS.KeyBoard.Shift_PreeNumber
 #define RUI_KeyBoard_Ctrl_Lock  RUI_V_DBUS.KeyBoard.Ctrl_PreeNumber
 
-#define DBUS_OFFLINE_TIME 30
-
 typedef struct
 {
     int8_t ONLINE_JUDGE_TIME; // 在线检测时间

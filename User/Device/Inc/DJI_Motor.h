@@ -50,13 +50,9 @@ typedef struct {
     Power_Typedef P1, P2, P3, P4, P5;
 } ALL_POWER_RX;
 
-typedef struct {
-    DJI_MOTOR_Typedef Chassis[4]; // 数组化更优雅
-    DJI_MOTOR_Typedef GM6020_1;
-} All_Motor_TypeDef;
+
 
 // --- 外部接口 ---
-extern All_Motor_TypeDef All_Motor;
 extern ALL_POWER_RX All_Power;
 
 // 核心分发与发送
