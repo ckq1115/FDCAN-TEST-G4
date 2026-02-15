@@ -27,6 +27,7 @@
 #include "All_Motor.h"
 #include "Power_CAP.h"
 #include "System_Status.h"
+#include "BSP_W25N01GV.h"
 
 extern uint8_t DBUS_RX_DATA[18];
 extern DBUS_Typedef C_DBUS;

@@ -54,14 +54,14 @@ static uint8_t ReadReg(uint16_t reg) {
 uint8_t ICM42688_Init(void) {
     // 1. 软复位：替换 HAL_Delay(100) 为 FreeRTOS 延时
     WriteReg(REG_DEVICE_CONFIG, 0x01);
-    vTaskDelay(pdMS_TO_TICKS(100));  // 替换 HAL_Delay(100)
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     // 2. ID 校验
     if (ReadReg(REG_WHO_AM_I) != ICM_WHO_AM_I_VAL) return 1;
 
     // 3. 配置中断引脚 (解决 DRDY 不拉高问题的关键)
     // INT_CONFIG (0x14): INT1 推挽输出, 高电平触发, 脉冲模式
-    WriteReg(REG_INT_CONFIG, 0x00);
+    WriteReg(REG_INT_CONFIG, 0x06);
     // INT_SOURCE0 (0x65): 将 UI 数据就绪中断 (UI_DRDY) 路由到 INT1
     WriteReg(REG_INT_SOURCE0, 0x08);
 

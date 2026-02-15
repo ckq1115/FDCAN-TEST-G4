@@ -117,10 +117,10 @@ void DM_Standard_Resolve(DM_MOTOR_Typdef *motor, uint8_t *rx_data);
 void DM_1to4_Resolve(DM_MOTOR_Typdef *motor, uint8_t *rx_data);
 
 // 控制发送
-void motor_mode(hcan_t* hcan, uint16_t motor_id, uint16_t mode_id, DMMotor_Mode_e what);
-void mit_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel, float kp, float kd, float torq);
-void pos_speed_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel);
-void speed_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float vel);
+void Motor_Mode(hcan_t* hcan, uint16_t motor_id, uint16_t mode_id, DMMotor_Mode_e what);
+void MIT_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel, float kp, float kd, float torq);
+void Pos_Speed_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel);
+void Speed_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float vel);
 void DM_Motor_Send(FDCAN_HandleTypeDef* hcan, uint16_t master_id, float m1_cur, float m2_cur, float m3_cur, float m4_cur);
 int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue);
 #endif //FDCAN_TEST_G4_DM_MOTOR_H

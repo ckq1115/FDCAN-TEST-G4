@@ -3,7 +3,10 @@
 //
 #include "System_Status.h"
 
+#include <stdbool.h>
+
 #include "All_define.h"
+#include "All_Init.h"
 #include "tim.h"
 #include "WS2812.h"
 
@@ -13,7 +16,13 @@ void System_Root(ROOT_STATUS_Typedef *Root, DBUS_Typedef *DBUS, MOTOR_Typdef *MO
     LED_Show_Status(Root);
 }
 
-uint8_t DJI_F_MOTOR_STATUS(DJI_MOTOR_DATA_Typedef* DATA)
+/**
+ * @brief 大疆电机在线状态监测函数
+ * @param DATA 电机数据结构体指针，包含在线计时器
+ * @return DEVICE_ONLINE 或 DEVICE_OFFLINE
+ * @note 该函数通过递减在线计时器来判断电机是否在线，若计时器小于5则认为离线，并重置计时器为0
+ */
+uint8_t DJI_MOTOR_STATUS(DJI_MOTOR_DATA_Typedef* DATA)
 {
     DATA->ONLINE_JUDGE_TIME--;
 
@@ -26,7 +35,13 @@ uint8_t DJI_F_MOTOR_STATUS(DJI_MOTOR_DATA_Typedef* DATA)
         return DEVICE_ONLINE;
 }
 
-uint8_t DM_F_MOTOR_STATUS(DM_MOTOR_DATA_Typdef* DATA)
+/**
+ * @brief 达妙电机在线状态监测函数
+ * @param DATA 电机数据结构体指针，包含在线计时器
+ * @return DEVICE_ONLINE 或 DEVICE_OFFLINE
+ * @note 该函数通过递减在线计时器来判断电机是否在线，若计时器小于5则认为离线，并重置计时器为0
+ */
+uint8_t DM_MOTOR_STATUS(DM_MOTOR_DATA_Typdef* DATA)
 {
     DATA->ONLINE_JUDGE_TIME--;
 
@@ -35,8 +50,7 @@ uint8_t DM_F_MOTOR_STATUS(DM_MOTOR_DATA_Typdef* DATA)
         DATA->ONLINE_JUDGE_TIME = 0;
         return DEVICE_OFFLINE;
     }
-    else
-        return DEVICE_ONLINE;
+    return DEVICE_ONLINE;
 }
 
 void All_Status(ROOT_STATUS_Typedef *Root, DBUS_Typedef *DBUS, MOTOR_Typdef *MOTOR, CAP_RXDATA *CAP_GET)
@@ -62,36 +76,37 @@ void All_Status(ROOT_STATUS_Typedef *Root, DBUS_Typedef *DBUS, MOTOR_Typdef *MOT
     {
         Root->Cap = DEVICE_ONLINE;
     }
+    /*Root->MOTOR_Chassis_1 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[0].DATA);
+    Root->MOTOR_Chassis_2 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[1].DATA);
+    Root->MOTOR_Chassis_3 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[2].DATA);
+    Root->MOTOR_Chassis_4 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[3].DATA);
+    Root->MOTOR_HEAD_Pitch = DM_MOTOR_STATUS(&All_Motor.DM4310_Pitch.DATA);*/
+    Root->MOTOR_HEAD_Yaw = DM_MOTOR_STATUS(&All_Motor.DM4310_Yaw.DATA);
 }
+
+static const Status_t Display_Map[] = {
+    [DEVICE_ONLINE]  = { .r = 0,   .g = 60, .b = 0, .breathe = 2.0f, .buzzer = false },
+    [DEVICE_OFFLINE] = { .r = 150, .g = 0, .b = 0, .breathe = 0.5f, .buzzer = true  }
+};
 
 void LED_Show_Status(ROOT_STATUS_Typedef *Root)
 {
-    if (Root->RM_DBUS == DEVICE_OFFLINE)
-    {
-        WS2812_SetPixel(3, 180, 0, 0); // 红色表示遥控离线
+    const Status_t *dbus  = &Display_Map[Root->RM_DBUS];
+    const Status_t *motor = &Display_Map[Root->MOTOR_HEAD_Yaw];
+
+    WS2812_SetPixel(2, motor->r, motor->g, motor->b);
+    WS2812_UpdateBreathing(2, motor->breathe);
+    WS2812_SetPixel(3, dbus->r, dbus->g, dbus->b);
+    WS2812_UpdateBreathing(3, dbus->breathe);
+
+
+    if (motor->buzzer && dbus->buzzer) {
+        Buzzer_UpdateCycle(0.25f, 0.5f, 20);
+    }
+    else if (dbus->buzzer || motor->buzzer) {
         Buzzer_UpdateCycle(0.5f, 1.0f, 20);
-        WS2812_UpdateBreathing(3, 0.2f);
     }
-    /*else if (Root->MOTOR_HEAD_Pitch == DEVICE_OFFLINE || Root->MOTOR_HEAD_Yaw == DEVICE_OFFLINE)
-    {
-        WS2812_SetPixel(3, 255, 255, 0); // 黄色表示头部电机离线
-    }
-    else if (Root->MOTOR_Shoot_L == DEVICE_OFFLINE || Root->MOTOR_Shoot_R == DEVICE_OFFLINE || Root->MOTOR_Shoot_M == DEVICE_OFFLINE)
-    {
-        WS2812_SetPixel(3, 255, 0, 255); // 紫色表示发射电机离线
-    }
-    else if (Root->MOTOR_Chassis_1 == DEVICE_OFFLINE || Root->MOTOR_Chassis_2 == DEVICE_OFFLINE || Root->MOTOR_Chassis_3 == DEVICE_OFFLINE || Root->MOTOR_Chassis_4 == DEVICE_OFFLINE)
-    {
-        WS2812_SetPixel(3, 255, 255, 255); // 青色表示底盘电机离线
-    }
-    else if (Root->Cap == DEVICE_OFFLINE)
-    {
-        WS2812_SetPixel(3, 255, 255, 0); // 黄色表示电容离线
-    }*/
-    else if (Root->RM_DBUS == DEVICE_ONLINE)
-    {
-        WS2812_SetPixel(3, 0, 60, 0); // 绿色表示系统正常
-        WS2812_UpdateBreathing(3, 2.0f);
+    else {
         Buzzer_Stop();
     }
     WS2812_Submit();

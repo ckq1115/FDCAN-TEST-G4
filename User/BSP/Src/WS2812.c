@@ -5,13 +5,14 @@
 #include <string.h>
 #include "tim.h"
 #include "BSP_DWT.h"
+#include "All_define.h"
 // 增加 50 个 0 作为复位信号
 #define PWM_BUF_LEN (MAX_LED * 24 + WS2812_RESET_LEN)
 
-static WS2812_Color_t LED_Data[MAX_LED];
+CCM_DATA static WS2812_Color_t LED_Data[MAX_LED];
 static uint16_t PWM_Buffer[PWM_BUF_LEN];
-static uint8_t Global_Brightness = 255;
-static volatile uint8_t isSending = 0;
+CCM_DATA static uint8_t Global_Brightness = 255;
+CCM_DATA static volatile uint8_t isSending = 0;
 
 void WS2812_Init(void) {
     isSending = 0;

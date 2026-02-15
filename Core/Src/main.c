@@ -19,8 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "cordic.h"
 #include "dma.h"
+#include "app_fatfs.h"
 #include "fdcan.h"
+#include "quadspi.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -148,6 +151,11 @@ int main(void)
   MX_TIM8_Init();
   MX_TIM3_Init();
   MX_TIM20_Init();
+  MX_CORDIC_Init();
+  MX_QUADSPI1_Init();
+  if (MX_FATFS_Init() != APP_OK) {
+    Error_Handler();
+  }
   /* USER CODE BEGIN 2 */
   All_Init();
   /* USER CODE END 2 */
@@ -196,7 +204,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
   RCC_OscInitStruct.PLL.PLLN = 85;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV4;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -251,11 +259,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+  HAL_FDCAN_Stop(&hfdcan1);
+  HAL_FDCAN_Stop(&hfdcan2);
+  HAL_FDCAN_Stop(&hfdcan3);
+  HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);// 进入错误状态后关闭加热片
+  WS2812_SetAll(255, 0, 0);
+  WS2812_Send();
+  for(volatile uint32_t i=0; i<50000; i++);
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
   {
-    HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
   }
   /* USER CODE END Error_Handler_Debug */
 }

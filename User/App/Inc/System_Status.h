@@ -4,6 +4,7 @@
 
 #ifndef FDCAN_TEST_G4_SYSTEM_STATUS_H
 #define FDCAN_TEST_G4_SYSTEM_STATUS_H
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "All_Motor.h"
@@ -35,6 +36,12 @@ typedef struct
     uint8_t MASTER_LOCATION;
 
 }ROOT_STATUS_Typedef;
+
+typedef struct {
+    uint8_t r, g, b;     // 颜色 RGB
+    float breathe;       // 呼吸频率
+    bool buzzer;         // 是否需要蜂鸣器
+} Status_t;
 
 void System_Root(ROOT_STATUS_Typedef *Root, DBUS_Typedef *DBUS, MOTOR_Typdef *MOTOR, CAP_RXDATA *CAP_GET);
 //总的状态监测

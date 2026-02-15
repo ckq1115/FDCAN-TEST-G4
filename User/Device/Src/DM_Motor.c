@@ -4,7 +4,12 @@
 #include "DM_Motor.h"
 #include "All_define.h"
 
-// --- MIT/位置/速度模式反馈处理 ---
+/**
+ * @brief 达妙电机数据解析函数
+ * @param motor   电机结构体指针
+ * @param rx_data 接收到的8字节数据数组
+ * @note 该函数根据达妙电机的通信协议，将接收到的字节数据解析为电机的物理量，并更新电机状态
+ */
 void DM_Standard_Resolve(DM_MOTOR_Typdef *motor, uint8_t *rx_data)
 {
     motor->DATA.id = (rx_data[0]) & 0x0F;
@@ -23,7 +28,12 @@ void DM_Standard_Resolve(DM_MOTOR_Typdef *motor, uint8_t *rx_data)
     motor->DATA.ONLINE_JUDGE_TIME = MOTOR_OFFLINE_TIME;
 }
 
-// --- 一拖四模式反馈处理 ---
+/**
+ * @brief 达妙电机一拖四模式数据解析函数
+ * @param motor   电机结构体指针
+ * @param rx_data 接收到的8字节数据数组
+ * @note 该函数在标准解析的基础上，增加了多圈角度处理、速度滤波和离线计时等功能，以适应更复杂的应用场景
+ */
 void DM_1to4_Resolve(DM_MOTOR_Typdef *motor, uint8_t *rx_data)
 {
     motor->DATA.Angle_last = motor->DATA.Angle_now;
@@ -54,7 +64,14 @@ void DM_1to4_Resolve(DM_MOTOR_Typdef *motor, uint8_t *rx_data)
     motor->DATA.ONLINE_JUDGE_TIME = MOTOR_OFFLINE_TIME;
 }
 
-void motor_mode(hcan_t* hcan, uint16_t motor_id, uint16_t mode_id, DMMotor_Mode_e what)
+/**
+ * @brief 达妙电机模式切换命令
+ * @param hcan     FDCAN 句柄
+ * @param motor_id 电机 ID (Base ID)
+ * @param mode_id  模式 ID (MIT_MODE, POS_MODE, SPEED_MODE)
+ * @param what     具体操作 (DMMotor_Mode_e 枚举值)
+ */
+void Motor_Mode(hcan_t* hcan, uint16_t motor_id, uint16_t mode_id, DMMotor_Mode_e what)
 {
     uint8_t data[8];
     uint16_t id = motor_id + mode_id;
@@ -70,9 +87,18 @@ void motor_mode(hcan_t* hcan, uint16_t motor_id, uint16_t mode_id, DMMotor_Mode_
 
     FDCAN_Send_Msg(hcan, id, data, 8);
 }
-// --- 控制指令发送 ---
 
-void mit_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel, float kp, float kd, float torq)
+/**
+ * @brief 达妙电机 MIT 模式控制
+ * @param hcan     FDCAN 句柄
+ * @param motor_id 电机 ID (Base ID)
+ * @param pos      目标位置 (float)
+ * @param vel      目标速度 (float)
+ * @param kp       位置环增益 (float)
+ * @param kd       速度环增益 (float)
+ * @param torq     目标扭矩 (float)
+ */
+void MIT_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel, float kp, float kd, float torq)
 {
     uint8_t data[8];
     uint16_t p = float_to_uint(pos, P_MIN, P_MAX, 16);
@@ -93,7 +119,14 @@ void mit_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel
     FDCAN_Send_Msg(hcan, motor_id + MIT_MODE, data, 8);
 }
 
-void pos_speed_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel)
+/**
+ * @brief 达妙电机位置速度控制模式
+ * @param hcan     FDCAN 句柄
+ * @param motor_id 电机 ID (Base ID)
+ * @param pos      目标位置 (float)
+ * @param vel      目标速度 (float)
+ */
+void Pos_Speed_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, float vel)
 {
     uint8_t data[8];
     memcpy(&data[0], &pos, 4);
@@ -101,6 +134,33 @@ void pos_speed_ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, flo
     FDCAN_Send_Msg(hcan, motor_id + POS_MODE, data, 8);
 }
 
+/**
+ * @brief 达妙电机速度控制模式
+ * @param hcan     FDCAN 句柄
+ * @param motor_id 电机 ID (Base ID)
+ * @param vel      目标速度 (float)
+ */
+void Speed_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float vel)
+{
+    uint8_t data[8];
+    memcpy(&data[0], &vel, sizeof(float));
+    data[4] = 0x00;
+    data[5] = 0x00;
+    data[6] = 0x00;
+    data[7] = 0x00;
+    uint16_t send_id = motor_id + SPEED_MODE;
+    FDCAN_Send_Msg(hcan, send_id, data, 8);
+}
+
+/**
+ * @brief 达妙电机一拖四模式电流控制
+ * @param hcan      FDCAN 句柄
+ * @param master_id 主控电机 ID (Base ID)
+ * @param m1_cur    电机1目标电流 (float)
+ * @param m2_cur    电机2目标电流 (float)
+ * @param m3_cur    电机3目标电流 (float)
+ * @param m4_cur    电机4目标电流 (float)
+ */
 void DM_Motor_Send(FDCAN_HandleTypeDef* hcan, uint16_t master_id, float m1_cur, float m2_cur, float m3_cur, float m4_cur)
 {
     uint8_t data[8];

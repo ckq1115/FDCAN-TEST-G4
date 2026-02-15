@@ -28,6 +28,7 @@ void All_Init() {
     FDCAN_Config(&hfdcan2, FDCAN_RX_FIFO1);
     FDCAN_Config(&hfdcan3, FDCAN_RX_FIFO0);
     WS2812_Init();
+    W25N01GV_Init();
     IMU_Gyro_Calib_Initiate();
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);

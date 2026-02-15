@@ -124,6 +124,8 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Utils/Inc/All_Motor.h
         User/Device/Inc/Power_CAP.h
         User/Device/Src/Power_CAP.c
+        User/BSP/Inc/BSP_W25N01GV.h
+        User/BSP/Src/BSP_W25N01GV.c
 )
 
 # 添加用户源文件

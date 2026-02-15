@@ -41,7 +41,9 @@ static CCM_DATA uint16_t gyro_calib_cnt   = 0;//陀螺仪校准计数
 static CCM_DATA float heater_pwm_out   = 0;// 当前加热片PWM输出值
 
 /**
- * @brief 设置加热片PWM占空比
+ * @brief 设置加热片PWM输出
+ * @param pwm 目标PWM值 (0.0f - HEATER_PWM_MAX)
+ * @note 该函数会自动进行限幅保护，确保PWM值在安全范围内
  */
 void Set_Heater_PWM(float pwm)
 {
@@ -85,8 +87,8 @@ void IMU_Temp_Control_Init(void)
 
 /*==================== 核心任务逻辑 ====================*/
 /**
- * @brief IMU温度控制与状态管理主任务
- * @note  建议调用频率：1ms (内部自带10ms分频)
+ * @brief IMU数据更新与控制状态机执行函数
+ * @note 该函数在每次IMU数据更新后调用，负责执行温控PID计算、状态转换和陀螺仪校准等核心逻辑
  */
 void IMU_Update_Task(void)
 {
@@ -224,7 +226,8 @@ void IMU_Update_Task(void)
 }
 
 /**
- * @brief 陀螺仪静态零偏校准任务
+ * @brief 陀螺仪零偏校准任务
+ * @note  该函数在GYRO_CALIB状态下被周期调用，累计采样数据进行平均，完成后设置校准完成标志
  */
 void IMU_Gyro_Zero_Calibration_Task(void)
 {
@@ -271,10 +274,9 @@ void IMU_Gyro_Calib_Initiate(void)
  * @note  该函数在每次IMU数据更新后调用，若检测到异常则将状态机切换到ERROR_STATE
  */
 void IMU_Status_Check(void) {
-        // 静态变量用于卡死检测
     static float last_sum = 0;
     static uint16_t stuck_cnt = 0;
-
+    // 静态零值检测，如果加速度或陀螺仪数据全为零，判定为异常状态
     if ((fabsf(IMU_Data.accel[0]) < 1e-6f && fabsf(IMU_Data.accel[1]) < 1e-6f && fabsf(IMU_Data.accel[2]) < 1e-6f)
     ||(fabsf(IMU_Data.gyro[0]) < 1e-6f && fabsf(IMU_Data.gyro[1]) < 1e-6f && fabsf(IMU_Data.gyro[2]) < 1e-6f))
     {
@@ -293,7 +295,7 @@ void IMU_Status_Check(void) {
         stuck_cnt = 0;
         last_sum = sum;
     }
-        // 5. 温度边界保护
+    // 温度边界保护，若温度超过50℃或低于0℃，则判定为异常状态
     if (IMU_Data.temp > 50.0f || IMU_Data.temp < 0.0f) {
         imu_ctrl_state = ERROR_STATE;
     }

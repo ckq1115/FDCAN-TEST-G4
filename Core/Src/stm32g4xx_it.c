@@ -22,6 +22,8 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tim.h"
+#include "WS2812.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +60,8 @@
 extern FDCAN_HandleTypeDef hfdcan1;
 extern FDCAN_HandleTypeDef hfdcan2;
 extern FDCAN_HandleTypeDef hfdcan3;
+extern DMA_HandleTypeDef hdma_quadspi;
+extern QSPI_HandleTypeDef hqspi1;
 extern SPI_HandleTypeDef hspi2;
 extern DMA_HandleTypeDef hdma_tim8_ch4;
 extern TIM_HandleTypeDef htim4;
@@ -95,7 +99,13 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  HAL_FDCAN_Stop(&hfdcan1);
+  HAL_FDCAN_Stop(&hfdcan2);
+  HAL_FDCAN_Stop(&hfdcan3);
+  HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);// 进入错误状态后关闭加热片
+  WS2812_SetAll(255, 0, 0);
+  WS2812_Send();
+  for(volatile uint32_t i=0; i<50000; i++);
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -212,6 +222,20 @@ void DMA1_Channel3_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles DMA1 channel4 global interrupt.
+  */
+void DMA1_Channel4_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel4_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_quadspi);
+  /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel4_IRQn 1 */
+}
+
+/**
   * @brief This function handles FDCAN1 interrupt 0.
   */
 void FDCAN1_IT0_IRQHandler(void)
@@ -310,20 +334,6 @@ void USART3_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles EXTI line[15:10] interrupts.
-  */
-void EXTI15_10_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
-
-  /* USER CODE END EXTI15_10_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10);
-  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
-
-  /* USER CODE END EXTI15_10_IRQn 1 */
-}
-
-/**
   * @brief This function handles FDCAN2 interrupt 0.
   */
 void FDCAN2_IT0_IRQHandler(void)
@@ -377,6 +387,20 @@ void FDCAN3_IT1_IRQHandler(void)
   /* USER CODE BEGIN FDCAN3_IT1_IRQn 1 */
 
   /* USER CODE END FDCAN3_IT1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles QUADSPI global interrupt.
+  */
+void QUADSPI_IRQHandler(void)
+{
+  /* USER CODE BEGIN QUADSPI_IRQn 0 */
+
+  /* USER CODE END QUADSPI_IRQn 0 */
+  HAL_QSPI_IRQHandler(&hqspi1);
+  /* USER CODE BEGIN QUADSPI_IRQn 1 */
+
+  /* USER CODE END QUADSPI_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
