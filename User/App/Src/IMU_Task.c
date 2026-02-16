@@ -31,8 +31,10 @@ CCM_DATA IMU_CTRL_FLAG_t  imu_ctrl_flag  = {0};// 控制状态标志
 CCM_DATA PID_t imu_temp;
 CCM_DATA FuzzyRule_t fuzzy_rule_temp;
 CCM_DATA IMU_Data_t IMU_Data = {
+    /*.accel_bias = {-0.0018742225f, -0.0085052567f, -0.3006388713f},
+    .accel_scale = {0.9991735142f, 1.0005724099f, 0.9983936339f}*/
     .accel_bias = {-0.0018742225f, -0.0085052567f, -0.3006388713f},
-    .accel_scale = {0.9991735142f, 1.0005724099f, 0.9983936339f}
+    .accel_scale = {0.9930995110f, 0.9944899028f, 0.9923243716f}
 };
 
 static CCM_DATA uint32_t temp_stable_tick = 0;// 温度稳定计时起点

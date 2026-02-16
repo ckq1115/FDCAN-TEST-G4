@@ -21,7 +21,6 @@
 #include "cmsis_os.h"
 #include "cordic.h"
 #include "dma.h"
-#include "app_fatfs.h"
 #include "fdcan.h"
 #include "quadspi.h"
 #include "spi.h"
@@ -153,9 +152,6 @@ int main(void)
   MX_TIM20_Init();
   MX_CORDIC_Init();
   MX_QUADSPI1_Init();
-  if (MX_FATFS_Init() != APP_OK) {
-    Error_Handler();
-  }
   /* USER CODE BEGIN 2 */
   All_Init();
   /* USER CODE END 2 */

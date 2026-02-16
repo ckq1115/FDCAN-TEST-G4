@@ -2,7 +2,6 @@
 // Created by CaoKangqi on 2026/1/19.
 //
 #include "All_Task.h"
-
 #include <stdio.h>
 
 uint32_t stm32_id[3];
@@ -61,14 +60,14 @@ void Motor_Task(void *argument)
     //Motor_Mode(&hfdcan1,1,0x200,0xfc);
     for(;;)
     {
-        W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
+        /*W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
         // 2. 擦除第 10 块
         W25N01GV_EraseBlock(10);
         // 3. 准备测试数据并写入
         for(int i=0; i<2048; i++) test_buf[i] = i % 256;
         W25N01GV_WritePage(10 * 64, test_buf, 2048);
         // 4. 读回并验证
-        W25N01GV_ReadPage(10 * 64, read_buf, 2048);
+        W25N01GV_ReadPage(10 * 64, read_buf, 2048);*/
         //Speed_Ctrl(&hfdcan1,1,IMU_Data.yaw);
         DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);
         Get_UID(stm32_id);
@@ -94,69 +93,142 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
         }
     }
 }
+
+
+CAN_Stats_t can1_stats;
+CAN_Stats_t can2_stats;
+CAN_Stats_t can3_stats;
+/**
+ * @brief FDCAN FIFO0 接收中断回调函数
+ * @note 优化要点：
+ *       1. 循环读取FIFO直到为空，确保不丢帧
+ *       2. 检测并处理FIFO溢出情况
+ *       3. 减少中断内处理时间，提高实时性
+ *       4. 统计接收数据，便于调试
+ */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-    FDCAN_RxHeaderTypeDef RxHeader1;
-    uint8_t g_Can1RxData[64];
+    FDCAN_RxHeaderTypeDef rx;
+    uint8_t data[8];
+    CAN_Stats_t *stats = NULL;
 
-    FDCAN_RxHeaderTypeDef RxHeader3;
-    uint8_t g_Can3RxData[64];
-
-    if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET)
+    // 确定统计结构
+    if (hfdcan->Instance == FDCAN1)
+        stats = &can1_stats;
+    else if (hfdcan->Instance == FDCAN3)
+        stats = &can3_stats;
+    // 检测FIFO溢出，如果溢出则记录错误
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_FULL)
     {
-        if(hfdcan->Instance == FDCAN1)
+        if (stats) stats->fifo_full_count++;
+    }
+    if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_MESSAGE_LOST)
+    {
+        if (stats) stats->msg_lost_count++;
+    }
+    // 循环读取FIFO中的所有消息，确保不遗漏
+    uint32_t fill_level;
+    while ((fill_level = HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0)) > 0)
+    {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx, data) != HAL_OK)
         {
-            /* Retrieve Rx messages from RX FIFO0 */
-            memset(g_Can1RxData, 0, sizeof(g_Can1RxData));	//接收前先清空数组
-            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, g_Can1RxData);
-            switch(RxHeader1.Identifier)
-            {
-                case 0x101:
-                    break;
-                case 0x201: DM_1to4_Resolve(&All_Motor.DM4310_Yaw,g_Can1RxData);
-
-                    default:
-                    break;
-					}
-
+            if (stats) stats->error_count++;
+            break; // 读取失败，退出循环
         }
-
-        if(hfdcan->Instance == FDCAN3)
+        if (stats) stats->rx_count++;
+        // 根据不同的FDCAN实例和ID分发消息
+        if (hfdcan->Instance == FDCAN1)
         {
-            /* Retrieve Rx messages from RX FIFO0 */
-            memset(g_Can3RxData, 0, sizeof(g_Can3RxData));
-            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader3, g_Can3RxData);
-            switch(RxHeader3.Identifier)
+            switch (rx.Identifier)
             {
-				case  0x201:
-					break;
+                case 0x201:
+                    DM_1to4_Resolve(&All_Motor.DM4310_Yaw, data);
+                    break;
+                case 0x207:
+                    // MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA, data);
+                    break;
+                case 0x605:
+                    CAN_POWER_Rx(&All_Power.P5, data);
+                    break;
+                default:
+                    break;
             }
         }
+        else if (hfdcan->Instance == FDCAN3)
+        {
+            switch (rx.Identifier)
+            {
+                case 0x201:
+                    break;
+                case 0x207:
+                    // MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA, data);
+                    break;
+                case 0x605:
+                    CAN_POWER_Rx(&All_Power.P5, data);
+                    break;
+                default:
+                    break;
+            }
+        }
+        // 安全保护：避免死循环（理论上不应该发生）
+        if (fill_level > 64) break; // FIFO最大深度一般不超过64
     }
 }
 
+/**
+ * @brief FDCAN FIFO1 接收中断回调函数
+ * @note 优化要点同FIFO0
+ */
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 {
-	FDCAN_RxHeaderTypeDef RxHeader2;
-    uint8_t g_Can2RxData[64];
+    FDCAN_RxHeaderTypeDef rx;
+    uint8_t data[8];
+    CAN_Stats_t *stats = NULL;
 
-	if((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET)
-	{
-		if(hfdcan->Instance == FDCAN2)
-		{
-			/* Retrieve Rx messages from RX FIFO0 */
-			memset(g_Can2RxData, 0, sizeof(g_Can2RxData));
-			HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &RxHeader2, g_Can2RxData);
-			switch(RxHeader2.Identifier)
-			{
-				case 0x201:
-					break;
-				case 0x202:
-					break;
-				case 0x203:
+    // 确定统计结构
+    if (hfdcan->Instance == FDCAN2)
+        stats = &can2_stats;
 
-					break;
-			}
-		}
-	}
+    // 检测FIFO溢出
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL)
+    {
+        if (stats) stats->fifo_full_count++;
+    }
+
+    if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_MESSAGE_LOST)
+    {
+        if (stats) stats->msg_lost_count++;
+    }
+
+    // 循环读取FIFO中的所有消息
+    uint32_t fill_level;
+    while ((fill_level = HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1)) > 0)
+    {
+        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx, data) != HAL_OK)
+        {
+            if (stats) stats->error_count++;
+            break;
+        }
+
+        if (stats) stats->rx_count++;
+
+        // FDCAN2使用FIFO1
+        if (hfdcan->Instance == FDCAN2)
+        {
+            switch (rx.Identifier)
+            {
+                case 0x207:
+                    // GM6020_Decode(&All_Motor.GM6020_1, data);
+                    break;
+                case 0x605:
+                    CAN_POWER_Rx(&All_Power.P5, data);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // 安全保护
+        if (fill_level > 64) break;
+    }
 }
