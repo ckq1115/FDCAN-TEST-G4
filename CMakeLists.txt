@@ -126,6 +126,8 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Device/Src/Power_CAP.c
         User/BSP/Inc/BSP_W25N01GV.h
         User/BSP/Src/BSP_W25N01GV.c
+        User/App/Inc/Chassis_Task.h
+        User/App/Src/Chassis_Task.c
 )
 
 # 添加用户源文件
@@ -177,6 +179,12 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
         # 开启DSP库快速模式（牺牲精度换速度）
         # ARM_MATH_FAST_MATH=1
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DEBUG_MODE)
+else()
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE RELEASE_MODE)
+endif()
 
 # ------------------------------------------------------------------------------
 # 9. 生成辅助文件 (Hex, Bin)

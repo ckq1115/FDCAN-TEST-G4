@@ -1,7 +1,9 @@
 //
 // Created by CaoKangqi on 2026/1/25.
 //
-#include "../Inc/CKQ_MATH.h"
+#include "CKQ_MATH.h"
+
+#include "stm32g473xx.h"
 
 /************************************************************ 万能分隔符 **************************************************************
  *	@performance:	    // int16_t 绝对值
@@ -161,4 +163,37 @@ void convertAngleToIndex(float angle, float *index) {
 
     // 将角度转换为0-8191的索引
     *index = (angle / 360.0f * 8192.0f);
+}
+
+/**
+ * @brief CORDIC Atan2 快速函数
+ */
+inline float CORDIC_Atan2_Fast(float y, float x) {
+    // 1. 使用 INT32_MAX 避免溢出 (2147483647.0f)
+    const float f_q31 = 2147483647.0f;
+    int32_t arg_x = (int32_t)(x * f_q31);
+    int32_t arg_y = (int32_t)(y * f_q31);
+
+    /* 2. 配置寄存器 (直接操作避免HAL开销)
+       FUNC = 2 (Phase)
+       PRECISION = 6 (24 cycles)
+       NARG = 2 (必须为2，因为需要输入X和Y)
+       NRES = 1
+    */
+    CORDIC->CSR = (2 << CORDIC_CSR_FUNC_Pos) |
+                  (6 << CORDIC_CSR_PRECISION_Pos) |
+                  (1 << CORDIC_CSR_NARGS_Pos) |   // NARG=1 在寄存器位定义中代表 2个参数
+                  (0 << CORDIC_CSR_NRES_Pos);    // NRES=0 在寄存器位定义中代表 1个结果
+
+    // 3. 严格按照顺序写入：先 X 后 Y
+    CORDIC->WDATA = arg_x;
+    CORDIC->WDATA = arg_y; // 写入第二个参数触发计算
+
+    // 4. 读取结果
+    int32_t res = CORDIC->RDATA;
+
+    // 5. 转换回浮点 (res / 2^31 * 180.0)
+    // 直接乘以这个系数可以直接得到角度度数，省去后续的 RAD2DEG
+    // 系数 = 180.0 / 2147483648.0
+    return (float)res * 8.38190317e-8f;
 }

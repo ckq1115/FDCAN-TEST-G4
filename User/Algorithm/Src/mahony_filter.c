@@ -13,9 +13,8 @@
 #include "mahony_filter.h"
 
 #include "arm_math.h"
-#include "cordic.h"
 
-struct MAHONY_FILTER_t mahony_filter;
+CCM_DATA struct MAHONY_FILTER_t mahony_filter;
 
 /**
  * @brief 优化的逆平方根：在支持FPU的ARM上，硬件除法和开方极快
@@ -93,7 +92,7 @@ CCM_FUNC void mahony_update(struct MAHONY_FILTER_t *f,
 
     if (is_static)
     {
-        const float learn_rate = 0.003f;   // 零偏学习率：调大收敛更快，调小更稳定
+        const float learn_rate = 0.005f;   // 零偏学习率：调大收敛更快，调小更稳定
         f->gyro_bias.x = (1 - learn_rate) * f->gyro_bias.x + learn_rate * gx;
         f->gyro_bias.y = (1 - learn_rate) * f->gyro_bias.y + learn_rate * gy;
         f->gyro_bias.z = (1 - learn_rate) * f->gyro_bias.z + learn_rate * gz;
@@ -143,39 +142,6 @@ CCM_FUNC void mahony_update(struct MAHONY_FILTER_t *f,
     RotationMatrix_update(f);
 }
 
-/**
- * @brief 修正后的 CORDIC Atan2 快速函数
- */
-static inline float CORDIC_Atan2_Fast(float y, float x) {
-    // 1. 使用 INT32_MAX 避免溢出 (2147483647.0f)
-    const float f_q31 = 2147483647.0f;
-    int32_t arg_x = (int32_t)(x * f_q31);
-    int32_t arg_y = (int32_t)(y * f_q31);
-
-    /* 2. 配置寄存器 (直接操作避免HAL开销)
-       FUNC = 2 (Phase)
-       PRECISION = 6 (24 cycles)
-       NARG = 2 (必须为2，因为需要输入X和Y)
-       NRES = 1
-    */
-    CORDIC->CSR = (2 << CORDIC_CSR_FUNC_Pos) |
-                  (6 << CORDIC_CSR_PRECISION_Pos) |
-                  (1 << CORDIC_CSR_NARGS_Pos) |   // NARG=1 在寄存器位定义中代表 2个参数
-                  (0 << CORDIC_CSR_NRES_Pos);    // NRES=0 在寄存器位定义中代表 1个结果
-
-    // 3. 严格按照顺序写入：先 X 后 Y
-    CORDIC->WDATA = arg_x;
-    CORDIC->WDATA = arg_y; // 写入第二个参数触发计算
-
-    // 4. 读取结果
-    int32_t res = CORDIC->RDATA;
-
-    // 5. 转换回浮点 (res / 2^31 * 180.0)
-    // 直接乘以这个系数可以直接得到角度度数，省去后续的 RAD2DEG
-    // 系数 = 180.0 / 2147483648.0
-    return (float)res * 8.38190317e-8f;
-}
-
 CCM_FUNC void mahony_output(struct MAHONY_FILTER_t *f) {
     float r20 = f->rMat[2][0];
     if (r20 > 1.0f) r20 = 1.0f;
@@ -183,17 +149,13 @@ CCM_FUNC void mahony_output(struct MAHONY_FILTER_t *f) {
 
     float sqrt_val;
     arm_sqrt_f32(1.0f - r20 * r20, &sqrt_val);
-
     // 1. Pitch: 注意符号
     // 原公式 pitch = -asin(r20) = -atan2(r20, sqrt(1-r20^2))
     f->pitch = -CORDIC_Atan2_Fast(r20, sqrt_val);
-
     // 2. Roll: atan2(r21, r22)
     f->roll  = CORDIC_Atan2_Fast(f->rMat[2][1], f->rMat[2][2]);
-
     // 3. Yaw: atan2(r10, r00)
     f->yaw   = CORDIC_Atan2_Fast(f->rMat[1][0], f->rMat[0][0]);
-
     // --- 偏航角累加逻辑 ---
     float yaw_diff = f->yaw - f->last_yaw;
     if (yaw_diff > 180.0f)  yaw_diff -= 360.0f;

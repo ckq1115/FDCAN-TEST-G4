@@ -30,4 +30,6 @@ typedef struct
     float vbus;
 }V_Input_t;
 
+float CORDIC_Atan2_Fast(float y, float x);
+
 #endif //FDCAN_TEST_G4_CKQ_MATH_H

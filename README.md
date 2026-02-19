@@ -8,7 +8,7 @@ RoboMaster STM32G473VET6 主控代码框架
 - **IDE**: CLion with CMake
 - **RTOS**: FreeRTOS
 - **工具链**: GCC ARM None EABI
-- **调试**: OpenOCD + GDB
+- **调试**: OpenOCD + GDB + Ozone
 
 ## 目录结构
 

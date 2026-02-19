@@ -45,7 +45,7 @@ void CCMRAM_Init(void) {
   SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
   __DSB(); __ISB();
 
-  // 2. 拷贝CCM数据段（变量）—— 原有逻辑保留
+  // 2. 拷贝CCM数据段（变量）
   extern uint32_t _siccmram_data, _sccmram_data, _eccmram_data;
   const uint32_t CCM_MAX_LEN = 8192;
   uint32_t copy_len = (uint32_t)&_eccmram_data - (uint32_t)&_sccmram_data;
@@ -62,7 +62,7 @@ void CCMRAM_Init(void) {
     }
   }
 
-  // 3. 拷贝CCM函数段（指令）—— 新增：按字节拷贝，避免拆分指令
+  // 3. 拷贝CCM函数段（指令）
   extern uint32_t _siccmram_text, _sccmram_text, _eccmram_text;
   uint8_t *pSrc_text = (uint8_t*)&_siccmram_text;
   uint8_t *pDest_text = (uint8_t*)&_sccmram_text;
@@ -75,7 +75,6 @@ void CCMRAM_Init(void) {
       *pDest_text++ = *pSrc_text++;
     }
   }
-
   __ISB(); // 刷新指令流水线
 }
 /* USER CODE END PTD */
@@ -118,7 +117,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  CCMRAM_Init();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -134,7 +133,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  CCMRAM_Init();
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */

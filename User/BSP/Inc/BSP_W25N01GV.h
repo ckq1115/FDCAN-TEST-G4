@@ -24,6 +24,16 @@
 #define W25N_SR2_CONFIGURATION      0xB0
 #define W25N_SR3_STATUS             0xC0
 
+/* 状态位 */
+#define W25N_SR3_BUSY_BIT           0x01
+#define W25N_SR3_WEL_BIT            0x02
+#define W25N_SR3_EFAIL_BIT          0x04
+#define W25N_SR3_PFAIL_BIT          0x08
+#define W25N_SR2_QE_BIT             0x02
+
+/* 超时设置 */
+#define W25N_TIMEOUT_MS             1000
+
 /* 存储结构参数 */
 #define W25N_PAGE_SIZE              2048    /* 2KB per page */
 #define W25N_BLOCK_SIZE             64      /* 64 pages per block */

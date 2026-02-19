@@ -11,7 +11,7 @@ void Get_UID(uint32_t *uid) {
     uid[2] = HAL_GetUIDw2();
 }
 
-void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+CCM_FUNC void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     static uint32_t last_trigger_cnt = 0;
     float actual_period;
     if (htim->Instance == TIM4) {
@@ -51,33 +51,25 @@ void IMU_Task(void *argument)
     }
 }
 float a = 0;
-uint8_t test_buf[2048];
-uint8_t read_buf[2048];
 uint8_t flash_id[3];
 void Motor_Task(void *argument)
 {
     (void)argument;
+    Get_UID(stm32_id);
     //Motor_Mode(&hfdcan1,1,0x200,0xfc);
     for(;;)
     {
         /*W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
-        // 2. 擦除第 10 块
-        W25N01GV_EraseBlock(10);
-        // 3. 准备测试数据并写入
-        for(int i=0; i<2048; i++) test_buf[i] = i % 256;
-        W25N01GV_WritePage(10 * 64, test_buf, 2048);
-        // 4. 读回并验证
-        W25N01GV_ReadPage(10 * 64, read_buf, 2048);*/
         //Speed_Ctrl(&hfdcan1,1,IMU_Data.yaw);
-        DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);
-        Get_UID(stm32_id);
-        /*VOFA_justfloat(
+        DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);*/
+
+        VOFA_justfloat(
             dt_s,
             IMU_Data.pitch,
             IMU_Data.roll,
             IMU_Data.yaw,
             IMU_Data.YawTotalAngle,
-            imu_period_s,imu_operate_us,0,0,0);*/
+            imu_period_s,imu_operate_us,0,0,0);
         osDelay(1);
     }
 }
@@ -87,17 +79,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
     if (huart->Instance == USART3){
         if (Size == 18){
             DBUS_Resolved(DBUS_RX_DATA, &C_DBUS, &C_DBUS_UNION);
-            if (C_DBUS.Remote.S1_u8 == 1) {
-                imu_ctrl_state = GYRO_CALIB;
-            }
         }
     }
 }
 
-
-CAN_Stats_t can1_stats;
-CAN_Stats_t can2_stats;
-CAN_Stats_t can3_stats;
+CCM_DATA CAN_Stats_t can1_stats;
+CCM_DATA CAN_Stats_t can2_stats;
+CCM_DATA CAN_Stats_t can3_stats;
 /**
  * @brief FDCAN FIFO0 接收中断回调函数
  * @note 优化要点：
@@ -106,7 +94,7 @@ CAN_Stats_t can3_stats;
  *       3. 减少中断内处理时间，提高实时性
  *       4. 统计接收数据，便于调试
  */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+CCM_FUNC void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
     FDCAN_RxHeaderTypeDef rx;
     uint8_t data[8];
@@ -179,7 +167,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
  * @brief FDCAN FIFO1 接收中断回调函数
  * @note 优化要点同FIFO0
  */
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
+CCM_FUNC void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 {
     FDCAN_RxHeaderTypeDef rx;
     uint8_t data[8];

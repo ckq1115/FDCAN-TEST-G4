@@ -11,12 +11,6 @@
 #include <math.h>
 #include "All_define.h"
 #include "All_Init.h"
-/// 圆周率
-#define PI 3.14159265358979f
-/// 角度转弧度
-#define DEG2RAD (PI / 180.0f)
-/// 弧度转角度
-#define RAD2DEG (180.0f / PI)
 
 typedef struct {
     float x;  // X轴

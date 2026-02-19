@@ -6,7 +6,6 @@ GraphedExpression="(IMU_Data).pitch", Color=#769dda
 OpenDocument="BSP_W25N01GV.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/BSP/Src/BSP_W25N01GV.c", Line=109
 OpenDocument="main.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/Core/Src/main.c", Line=110
 OpenDocument="WS2812.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/BSP/Src/WS2812.c", Line=48
-OpenDocument="EKF.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/Algorithm/Src/EKF.c", Line=0
 OpenDocument="IMU_Task.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/App/Src/IMU_Task.c", Line=196
 OpenDocument="BSP_ICM42688P.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/BSP/Src/BSP_ICM42688P.c", Line=166
 OpenDocument="All_Task.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/App/Src/All_Task.c", Line=66
@@ -15,20 +14,19 @@ OpenDocument="tasks.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/Middlewares/Thi
 OpenDocument="System_Status.c", FilePath="E:/STM32 project/FDCAN-TEST-G4/User/App/Src/System_Status.c", Line=69
 OpenToolbar="Debug", Floating=0, x=0, y=0
 OpenWindow="Source Files", DockArea=LEFT, x=0, y=0, w=559, h=866, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Global Data", DockArea=RIGHT, x=0, y=1, w=632, h=131, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=RIGHT, x=0, y=0, w=632, h=734, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Global Data", DockArea=RIGHT, x=0, y=1, w=632, h=148, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=RIGHT, x=0, y=0, w=632, h=717, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Data Sampling", DockArea=BOTTOM, x=2, y=0, w=681, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
-OpenWindow="Timeline", DockArea=BOTTOM, x=1, y=0, w=1438, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="2 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="44;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="1145;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="1167;0"
+OpenWindow="Timeline", DockArea=BOTTOM, x=1, y=0, w=1438, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="2 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="44;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="464;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="471;0"
 OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=439, h=543, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Global Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[268;184;118;100;95;100]
-TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[222;100;100;100;1235]
+TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[222;100;100;100;100]
 TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (IMU_Data).roll";" (IMU_Data).yaw";" (IMU_Data).pitch"], ColWidths=[100;100;100;100;100]
 TableHeader="Data Sampling Setup", SortCol="Type", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"# Changes"], ColWidths=[214;100;100;267]
 TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
 TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[260;171;119;100]
 TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
-TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;100;100;340]
 WatchedExpression="IMU_Data", RefreshRate=5, DisplayFormat=DISPLAY_FORMAT_HEX, Window=Watched Data 1
 WatchedExpression="dt_s", RefreshRate=5, DisplayFormat=DISPLAY_FORMAT_HEX, Window=Watched Data 1
 WatchedExpression="mahony_filter", RefreshRate=5, DisplayFormat=DISPLAY_FORMAT_HEX, Window=Watched Data 1
