@@ -33,7 +33,7 @@ void All_Init() {
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
-    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 50);
+    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 80);
     HAL_Delay(500);
     __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 0);
     HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);

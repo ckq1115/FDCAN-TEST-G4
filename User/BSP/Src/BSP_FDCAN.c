@@ -102,6 +102,5 @@ uint8_t FDCAN_Send_Msg(FDCAN_HandleTypeDef *hfdcan, uint32_t id, uint8_t *data, 
         .TxEventFifoControl = FDCAN_NO_TX_EVENTS, // 不使用事件FIFO
         .MessageMarker = 0 // 消息标记，用户自定义用途
     };
-
     return (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &TxHeader, data) == HAL_OK) ? 0 : 1;
 }

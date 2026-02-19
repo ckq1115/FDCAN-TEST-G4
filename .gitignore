@@ -1,4 +1,7 @@
 build
+G4_Framework.jdebug
+G4_Framework.jdebug.user
+.idea
 mx.scratch
 !.settings
-/start_daplink.bat
+G4一键启动OpenOCD.bat

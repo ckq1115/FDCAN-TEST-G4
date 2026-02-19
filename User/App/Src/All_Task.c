@@ -22,7 +22,7 @@ CCM_FUNC void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     }
 }
 
-static uint32_t INS_DWT_Count = 0;   // DWT计数基准
+static uint32_t INS_DWT_Count = 0; // DWT计数基准
 static float dt_s = 0.0f; // 任务单次执行耗时（秒）
 static float imu_period_s = 0.0f;
 static float imu_operate_us = 0;
@@ -63,7 +63,6 @@ void Motor_Task(void *argument)
         //W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
         //Speed_Ctrl(&hfdcan1,1,IMU_Data.yaw);
         //DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);
-
         VOFA_justfloat(
             dt_s,
             IMU_Data.pitch,
