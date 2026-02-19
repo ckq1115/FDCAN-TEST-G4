@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/19.
 //
 
-#ifndef FDCAN_TEST_G4_CONTROLLER_H
-#define FDCAN_TEST_G4_CONTROLLER_H
+#ifndef G4_FRAMEWORK_CONTROLLER_H
+#define G4_FRAMEWORK_CONTROLLER_H
 
 #include "main.h"
 #include "stdint.h"
@@ -258,4 +258,4 @@ typedef struct __packed
 void TD_Init(TD_t *td, float r, float h0);
 float TD_Calculate(TD_t *td, float input);
 
-#endif //FDCAN_TEST_G4_CONTROLLER_H
+#endif //G4_FRAMEWORK_CONTROLLER_H

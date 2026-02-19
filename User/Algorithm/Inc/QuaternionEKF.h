@@ -3,8 +3,8 @@
 // Fixed & Enhanced by Gemini
 //
 
-#ifndef FDCAN_TEST_G4_QUATERNIONEKF_H
-#define FDCAN_TEST_G4_QUATERNIONEKF_H
+#ifndef G4_FRAMEWORK_QUATERNIONEKF_H
+#define G4_FRAMEWORK_QUATERNIONEKF_H
 
 #include "kalman_filter.h"
 
@@ -76,4 +76,4 @@ float Get_Roll(void);//get roll
 float Get_Yaw(void);//get yaw
 float Get_YawTotalAngle(void);
 
-#endif //FDCAN_TEST_G4_QUATERNIONEKF_H
+#endif //G4_FRAMEWORK_QUATERNIONEKF_H

@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/25.
 //
 
-#ifndef FDCAN_TEST_G4_CKQ_MATH_H
-#define FDCAN_TEST_G4_CKQ_MATH_H
+#ifndef G4_FRAMEWORK_CKQ_MATH_H
+#define G4_FRAMEWORK_CKQ_MATH_H
 
 #include "stdint.h"
 
@@ -32,4 +32,4 @@ typedef struct
 
 float CORDIC_Atan2_Fast(float y, float x);
 
-#endif //FDCAN_TEST_G4_CKQ_MATH_H
+#endif //G4_FRAMEWORK_CKQ_MATH_H

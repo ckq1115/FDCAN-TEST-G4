@@ -1,9 +1,9 @@
 //
-// Created by CaoKangqi on 2026/2/16.
+// Created by CaoKangqi on 2026/2/19.
 //
 
-#ifndef FDCAN_TEST_G4_BSP_W25N01GV_H
-#define FDCAN_TEST_G4_BSP_W25N01GV_H
+#ifndef G4_FRAMEWORK_W25N01GV_H
+#define G4_FRAMEWORK_W25N01GV_H
 
 #include "main.h"
 
@@ -46,4 +46,4 @@ uint8_t W25N01GV_EraseBlock(uint16_t blockAddr);
 uint8_t W25N01GV_ReadPage(uint16_t pageAddr, uint8_t *pBuffer, uint16_t size);
 uint8_t W25N01GV_WritePage(uint16_t pageAddr, uint8_t *pBuffer, uint16_t size);
 
-#endif //FDCAN_TEST_G4_BSP_W25N01GV_H
+#endif //G4_FRAMEWORK_W25N01GV_H

@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/19.
 //
 
-#ifndef FDCAN_TEST_G4_DBUS_H
-#define FDCAN_TEST_G4_DBUS_H
+#ifndef G4_FRAMEWORK_DBUS_H
+#define G4_FRAMEWORK_DBUS_H
 
 #include "stdint.h"
 #include "CKQ_MATH.h"
@@ -175,4 +175,4 @@ void DBUS_Resolved(uint8_t* Data, DBUS_Typedef *RUI_V_DBUS,    DBUS_UNION_Typdef
 float OneFilter(float last , float now , float thresholdValue);
 uint8_t KEY_STATUS(uint64_t  KEY , uint8_t PRESS_TIME);
 
-#endif //FDCAN_TEST_G4_DBUS_H
+#endif //G4_FRAMEWORK_DBUS_H

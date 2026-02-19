@@ -51,17 +51,18 @@ void IMU_Task(void *argument)
     }
 }
 float a = 0;
-uint8_t flash_id[3];
+uint8_t flash_id[3] = {0};
 void Motor_Task(void *argument)
 {
     (void)argument;
+    W25N01GV_Init();
     Get_UID(stm32_id);
     //Motor_Mode(&hfdcan1,1,0x200,0xfc);
     for(;;)
     {
-        /*W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
+        //W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
         //Speed_Ctrl(&hfdcan1,1,IMU_Data.yaw);
-        DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);*/
+        //DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);
 
         VOFA_justfloat(
             dt_s,

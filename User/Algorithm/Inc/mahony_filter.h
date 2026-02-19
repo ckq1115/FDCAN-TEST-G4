@@ -5,8 +5,8 @@
  * @date 2026/2/11
  */
 
-#ifndef FDCAN_TEST_G4_MAHONY_FILTER_H
-#define FDCAN_TEST_G4_MAHONY_FILTER_H
+#ifndef G4_FRAMEWORK_MAHONY_FILTER_H
+#define G4_FRAMEWORK_MAHONY_FILTER_H
 
 #include <math.h>
 #include "All_define.h"
@@ -65,4 +65,4 @@ void mahony_update(struct MAHONY_FILTER_t *mahony_filter,
 void mahony_output(struct MAHONY_FILTER_t *mahony_filter);
 void RotationMatrix_update(struct MAHONY_FILTER_t *mahony_filter);
 
-#endif //FDCAN_TEST_G4_MAHONY_FILTER_H
+#endif //G4_FRAMEWORK_MAHONY_FILTER_H

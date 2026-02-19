@@ -2,11 +2,11 @@
 // Created by CaoKangqi on 2026/1/27.
 //
 
-#ifndef FDCAN_TEST_G4_IMU_TASK_H
-#define FDCAN_TEST_G4_IMU_TASK_H
+#ifndef G4_FRAMEWORK_IMU_TASK_H
+#define G4_FRAMEWORK_IMU_TASK_H
 
 #include "main.h"
-#include "BSP_ICM42688P.h"
+#include "../../Device/Inc/ICM42688P.h"
 #include "TIM.h"
 #include "controller.h"
 #include "All_Init.h"
@@ -60,4 +60,4 @@ void IMU_Update_Task(void);
 void IMU_Gyro_Zero_Calibration_Task(void);
 void IMU_Gyro_Calib_Initiate(void);
 void IMU_Status_Check(void);
-#endif //FDCAN_TEST_G4_IMU_TASK_H
+#endif //G4_FRAMEWORK_IMU_TASK_H

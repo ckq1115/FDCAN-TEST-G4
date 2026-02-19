@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-set(CMAKE_PROJECT_NAME FDCAN-TEST-G4)
+set(CMAKE_PROJECT_NAME G4_FRAMEWORK)
 project(${CMAKE_PROJECT_NAME})
 
 # 启用 C 和 汇编语言支持
@@ -89,13 +89,15 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Utils/Src/Vofa.c
         User/Device/Inc/DBUS.h
         User/Device/Src/DBUS.c
+        User/Device/Inc/ICM42688P.h
+        User/Device/Src/ICM42688P.c
+        USER/BSP/Inc/BSP_SPI.h
+        USER/BSP/Src/BSP_SPI.c
         User/App/Inc/All_Task.h
         User/Algorithm/Inc/controller.h
         User/Algorithm/Src/controller.c
         User/BSP/Inc/BSP_DWT.h
         User/BSP/Src/BSP_DWT.c
-        User/BSP/Inc/BSP_ICM42688P.h
-        User/BSP/Src/BSP_ICM42688P.c
         User/BSP/Inc/WS2812.h
         User/BSP/Src/WS2812.c
         User/Algorithm/Inc/CKQ_MATH.h
@@ -119,15 +121,18 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Device/Inc/DM_Motor.h
         User/Device/Src/DJI_Motor.c
         User/Device/Src/DM_Motor.c
-        User/App/Src/System_Status.c
-        User/App/Inc/System_Status.h
+        User/Middleware/Src/System_Status.c
+        User/Middleware/Inc/System_Status.h
         User/Utils/Inc/All_Motor.h
         User/Device/Inc/Power_CAP.h
         User/Device/Src/Power_CAP.c
-        User/BSP/Inc/BSP_W25N01GV.h
-        User/BSP/Src/BSP_W25N01GV.c
+        User/BSP/Inc/BSP_QSPI.h
+        User/BSP/Src/BSP_QSPI.c
+        User/Device/Inc/W25N01GV.h
+        User/Device/Src/W25N01GV.c
         User/App/Inc/Chassis_Task.h
         User/App/Src/Chassis_Task.c
+        User/Middleware/Inc/CAN_Comm.h
 )
 
 # 添加用户源文件

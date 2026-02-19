@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/2/14.
 //
 
-#ifndef FDCAN_TEST_G4_ALL_MOTOR_H
-#define FDCAN_TEST_G4_ALL_MOTOR_H
+#ifndef G4_FRAMEWORK_ALL_MOTOR_H
+#define G4_FRAMEWORK_ALL_MOTOR_H
 
 #include "DJI_Motor.h"
 #include "DM_Motor.h"
@@ -81,4 +81,4 @@ typedef struct
     uint8_t ORE;
 }CONTAL_Typedef;
 
-#endif //FDCAN_TEST_G4_ALL_MOTOR_H
+#endif //G4_FRAMEWORK_ALL_MOTOR_H

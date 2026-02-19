@@ -1,8 +1,8 @@
 //
 // Created by CaoKangqi on 2026/2/14.
 //
-#ifndef FDCAN_TEST_G4_DM_MOTOR_H
-#define FDCAN_TEST_G4_DM_MOTOR_H
+#ifndef G4_FRAMEWORK_DM_MOTOR_H
+#define G4_FRAMEWORK_DM_MOTOR_H
 
 #include "BSP-FDCAN.h"
 #include "CKQ_MATH.h"
@@ -123,4 +123,4 @@ void Pos_Speed_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float pos, flo
 void Speed_Ctrl(FDCAN_HandleTypeDef* hcan, uint16_t motor_id, float vel);
 void DM_Motor_Send(FDCAN_HandleTypeDef* hcan, uint16_t master_id, float m1_cur, float m2_cur, float m3_cur, float m4_cur);
 int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue);
-#endif //FDCAN_TEST_G4_DM_MOTOR_H
+#endif //G4_FRAMEWORK_DM_MOTOR_H

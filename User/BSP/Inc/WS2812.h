@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/23.
 //
 
-#ifndef FDCAN_TEST_G4_WS2812_H
-#define FDCAN_TEST_G4_WS2812_H
+#ifndef G4_FRAMEWORK_WS2812_H
+#define G4_FRAMEWORK_WS2812_H
 
 #include "main.h"
 
@@ -35,4 +35,4 @@ void WS2812_RainbowCycle(uint8_t speed);
 void WS2812_SingleRunningLight(uint8_t r, uint8_t g, uint8_t b, uint16_t delay_ms);
 void WS2812_TrailingRunningLight(uint8_t r, uint8_t g, uint8_t b, uint8_t decay, uint16_t delay_ms);
 
-#endif //FDCAN_TEST_G4_WS2812_H
+#endif //G4_FRAMEWORK_WS2812_H

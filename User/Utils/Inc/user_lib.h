@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/30.
 //
 
-#ifndef FDCAN_TEST_G4_USER_LIB_H
-#define FDCAN_TEST_G4_USER_LIB_H
+#ifndef G4_FRAMEWORK_USER_LIB_H
+#define G4_FRAMEWORK_USER_LIB_H
 
 #include "stdint.h"
 #include "main.h"
@@ -142,4 +142,4 @@ float OLS_Smooth(Ordinary_Least_Squares_t *OLS, float deltax, float y);
 float Get_OLS_Derivative(Ordinary_Least_Squares_t *OLS);
 float Get_OLS_Smooth(Ordinary_Least_Squares_t *OLS);
 
-#endif //FDCAN_TEST_G4_USER_LIB_H
+#endif //G4_FRAMEWORK_USER_LIB_H

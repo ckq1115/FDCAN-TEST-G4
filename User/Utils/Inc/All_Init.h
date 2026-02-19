@@ -2,15 +2,15 @@
 // Created by CaoKangqi on 2026/2/13.
 //
 
-#ifndef FDCAN_TEST_G4_ALL_INIT_H
-#define FDCAN_TEST_G4_ALL_INIT_H
+#ifndef G4_FRAMEWORK_ALL_INIT_H
+#define G4_FRAMEWORK_ALL_INIT_H
 
 #include <string.h>
 #include "main.h"
 #include "DBUS.h"
 #include "DJI_Motor.h"
 #include "DM_Motor.h"
-#include "BSP_ICM42688P.h"
+#include "../../Device/Inc/ICM42688P.h"
 #include "tim.h"
 #include "usart.h"
 #include "WS2812.h"
@@ -26,8 +26,8 @@
 #include "cmsis_os2.h"
 #include "All_Motor.h"
 #include "Power_CAP.h"
-#include "System_Status.h"
-#include "BSP_W25N01GV.h"
+#include "../../Middleware/Inc/System_Status.h"
+#include "../../Device/Inc/W25N01GV.h"
 
 extern uint8_t DBUS_RX_DATA[18];
 extern DBUS_Typedef C_DBUS;
@@ -37,4 +37,4 @@ extern MOTOR_Typdef All_Motor;
 
 extern ROOT_STATUS_Typedef ROOT_Status;
 void All_Init(void);
-#endif //FDCAN_TEST_G4_ALL_INIT_H
+#endif //G4_FRAMEWORK_ALL_INIT_H

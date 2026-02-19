@@ -3,8 +3,8 @@
 // Modified by Gemini
 //
 
-#ifndef FDCAN_TEST_G4_KALMAN_FILTER_H
-#define FDCAN_TEST_G4_KALMAN_FILTER_H
+#ifndef G4_FRAMEWORK_KALMAN_FILTER_H
+#define G4_FRAMEWORK_KALMAN_FILTER_H
 
 // cortex-m4 DSP lib
 /*
@@ -105,4 +105,4 @@ void Kalman_Filter_xhatUpdate(KalmanFilter_t *kf);
 void Kalman_Filter_P_Update(KalmanFilter_t *kf);
 float *Kalman_Filter_Update(KalmanFilter_t *kf);
 
-#endif //FDCAN_TEST_G4_KALMAN_FILTER_H
+#endif //G4_FRAMEWORK_KALMAN_FILTER_H

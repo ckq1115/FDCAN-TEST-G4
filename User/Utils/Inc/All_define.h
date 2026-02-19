@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/2/13.
 //
 
-#ifndef FDCAN_TEST_G4_ALL_DEFINE_H
-#define FDCAN_TEST_G4_ALL_DEFINE_H
+#ifndef G4_FRAMEWORK_ALL_DEFINE_H
+#define G4_FRAMEWORK_ALL_DEFINE_H
 
 //CCMRAM配置
 #define CCM_DATA  __attribute__((section(".ccmram")))
@@ -29,4 +29,4 @@
 
 #define INIT_ANGLE 0;
 
-#endif //FDCAN_TEST_G4_ALL_DEFINE_H
+#endif //G4_FRAMEWORK_ALL_DEFINE_H

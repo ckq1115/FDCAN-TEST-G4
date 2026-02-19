@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/2/14.
 //
 
-#ifndef FDCAN_TEST_G4_DJI_MOTOR_H
-#define FDCAN_TEST_G4_DJI_MOTOR_H
+#ifndef G4_FRAMEWORK_DJI_MOTOR_H
+#define G4_FRAMEWORK_DJI_MOTOR_H
 
 #include "BSP-FDCAN.h"
 #include "CKQ_MATH.h"
@@ -62,4 +62,4 @@ void DJI_Motor_Send(FDCAN_HandleTypeDef* hcan, uint32_t stdid, int16_t n1, int16
 void DJI_Motor_Stuck_Check(DJI_MOTOR_Typedef* motor, float angle_err, float speed_limit, uint16_t time_limit);
 void CAN_POWER_Rx(Power_Typedef* pPower, uint8_t *rx_data);
 
-#endif //FDCAN_TEST_G4_DJI_MOTOR_H
+#endif //G4_FRAMEWORK_DJI_MOTOR_H

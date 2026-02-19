@@ -5,7 +5,7 @@
 **********************************************************************
 
 File          : 
-Created       : 19. Jan 2026 06:18
+Created       : 19. Feb 2026 20:38
 Ozone Version : V3.40c
 */
 
@@ -22,19 +22,18 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.AddPathSubstitute ("E:/STM32 project/FDCAN-TEST-G4", "$(ProjectDir)");
-  Project.AddPathSubstitute ("e:/stm32 project/fdcan-test-g4", "$(ProjectDir)");
+  Project.AddPathSubstitute ("E:/STM32 project/G4_Framework", "$(ProjectDir)");
+  Project.AddPathSubstitute ("e:/stm32 project/g4_framework", "$(ProjectDir)");
   Project.SetDevice ("STM32G473VE");
   Project.SetHostIF ("USB", "123456");
   Project.SetTargetIF ("SWD");
-  Project.SetTIFSpeed ("4 MHz");
+  Project.SetTIFSpeed ("8 MHz");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-M4F.svd");
   Project.AddSvdFile ("$(InstallDir)/Config/Peripherals/STM32G473.svd");
   //
   // User settings
   //
-  Edit.SysVar (VAR_HSS_SPEED, FREQ_100_HZ);
-  File.Open ("$(ProjectDir)/build/Debug/FDCAN-TEST-G4.elf");
+  File.Open ("$(ProjectDir)/build/Debug/G4_FRAMEWORK.elf");
 }
 
 /*********************************************************************

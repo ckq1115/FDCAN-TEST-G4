@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/19.
 //
 
-#ifndef FDCAN_TEST_G4_BSP_DWT_H
-#define FDCAN_TEST_G4_BSP_DWT_H
+#ifndef G4_FRAMEWORK_BSP_DWT_H
+#define G4_FRAMEWORK_BSP_DWT_H
 
 #include "main.h"
 #include "stdint.h"
@@ -26,4 +26,4 @@ void DWT_SysTimeUpdate(void);
 
 extern DWT_Time_t SysTime;
 
-#endif //FDCAN_TEST_G4_BSP_DWT_H
+#endif //G4_FRAMEWORK_BSP_DWT_H

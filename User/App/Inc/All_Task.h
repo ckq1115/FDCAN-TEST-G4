@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/19.
 //
 
-#ifndef FDCAN_TEST_G4_ALL_TASK_H
-#define FDCAN_TEST_G4_ALL_TASK_H
+#ifndef G4_FRAMEWORK_ALL_TASK_H
+#define G4_FRAMEWORK_ALL_TASK_H
 
 #include "All_Init.h"
 
@@ -42,4 +42,4 @@ extern uint16_t adc_dma_buffer[2];
 void speed_solve(void);
 
 void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
-#endif //FDCAN_TEST_G4_ALL_TASK_H
+#endif //G4_FRAMEWORK_ALL_TASK_H
