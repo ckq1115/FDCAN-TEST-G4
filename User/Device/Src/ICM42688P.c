@@ -10,10 +10,17 @@
 #include "task.h"
 #include "portmacro.h"
 #include "projdefs.h"
+#include <string.h>
+
+#include "All_define.h"
 
 float acc_res = 0;
 float gyr_res = 0;
 static uint8_t current_bank = 0xFF;
+
+
+static volatile uint8_t icm_dma_busy = 0;//DMA传输状态标志，主任务在读取数据前会检查这个标志以避免数据冲突
+static volatile uint8_t icm_raw_ready = 0;//原始数据就绪标志，主任务在处理数据前会检查这个标志以确保数据有效
 
 /* internal: switch register bank */
 static void SelectBank(uint8_t bank) {
@@ -47,22 +54,35 @@ static uint8_t ReadReg(uint16_t reg) {
 }
 
 uint8_t ICM42688_Init(void) {
-    // 1. software reset
+    uint8_t int_config1_val;
+
+    // 1. 切换到Bank 0，确保所有中断相关寄存器操作在正确Bank
+    SelectBank(0);
+
+    // 2. software reset
     WriteReg(REG_DEVICE_CONFIG, 0x01);
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    // 2. ID check
+    // 3. ID check
     if (ReadReg(REG_WHO_AM_I) != ICM_WHO_AM_I_VAL) return 1;
 
-    // 3. interrupt pin config
-    WriteReg(REG_INT_CONFIG, 0x06);
+    // 4. 中断核心配置（四步缺一不可）
+    // 4.1 配置中断引脚属性：INT1=锁存、推挽、低有效
+    WriteReg(REG_INT_CONFIG, 0x02);
+    // 4.2 关键：修正INT_ASYNC_RESET（BIT4清零，其余位保留默认）
+    int_config1_val = ReadReg(REG_INT_CONFIG1); // 先读当前值
+    int_config1_val &= ~(1 << 4); // 仅将BIT4（INT_ASYNC_RESET）置0
+    WriteReg(REG_INT_CONFIG1, int_config1_val);
+    // 4.3 映射中断源：DRDY中断映射到INT1引脚
     WriteReg(REG_INT_SOURCE0, 0x08);
+    // 4.4 使能中断事件：开启DRDY（数据就绪）中断
+    WriteReg(REG_INT_ENABLE0, 0x08);
 
-    // 4. power management
+    // 5. power management
     WriteReg(REG_PWR_MGMT0, 0x0F);
     vTaskDelay(pdMS_TO_TICKS(50));
 
-    // 5. default ODR/FSR
+    // 6. default ODR/FSR
     ICM42688_SetFormat(ODR_1kHz, ACCEL_FS_8G, ODR_1kHz, GYRO_FS_2000DPS);
 
     ICM42688_Config_AAF(1, 7, 49, 9);
@@ -70,6 +90,9 @@ uint8_t ICM42688_Init(void) {
     ICM42688_Config_UI_Filter(UI_FILT_ORD_2ND, UI_FILT_BW_ODR_DIV_4, UI_FILT_ORD_2ND, UI_FILT_BW_ODR_DIV_4);
     //ICM42688_Config_Gyro_Notch_Filter(1, 1000.0f, GYRO_NF_BW_40HZ);
     SelectBank(0);
+
+
+
     return 0;
 }
 
@@ -155,9 +178,37 @@ void ICM42688_Read_Fast(float gyro[3], float accel[3], float *temperature)
     *temperature = (t_raw / 132.48f) + 25.0f;
 }
 
-#ifndef ICM_PI
-#define ICM_PI 3.14159265358979323846f
-#endif
+void ICM42688_ResolveRaw(const uint8_t raw_data[14], float gyro[3], float accel[3], float *temperature)
+{
+    int16_t t_raw = (int16_t)((raw_data[0] << 8) | raw_data[1]);
+
+    accel[0] = (int16_t)((raw_data[2] << 8) | raw_data[3]) * acc_res;
+    accel[1] = (int16_t)((raw_data[4] << 8) | raw_data[5]) * acc_res;
+    accel[2] = (int16_t)((raw_data[6] << 8) | raw_data[7]) * acc_res;
+
+    gyro[0] = (int16_t)((raw_data[8] << 8) | raw_data[9])   * gyr_res;
+    gyro[1] = (int16_t)((raw_data[10] << 8) | raw_data[11]) * gyr_res;
+    gyro[2] = (int16_t)((raw_data[12] << 8) | raw_data[13]) * gyr_res;
+
+    *temperature = (t_raw / 132.48f) + 25.0f;
+}
+
+void ICM42688_StartRead_IntDMA(uint8_t tx_buf[ICM_DMA_FRAME_LEN], uint8_t rx_buf[ICM_DMA_FRAME_LEN])
+{
+    if (icm_dma_busy) {
+        return;
+    }
+    if (HAL_SPI_GetState(ICM_SPI_HANDLE) != HAL_SPI_STATE_READY) {
+        return;
+    }
+
+    ICM_CS_PORT->BSRR = (uint32_t)ICM_CS_PIN << 16;
+    if (HAL_SPI_TransmitReceive_DMA(ICM_SPI_HANDLE, tx_buf, rx_buf, (uint16_t)ICM_DMA_FRAME_LEN) != HAL_OK) {
+        ICM_CS_PORT->BSRR = ICM_CS_PIN;
+    }
+}
+
+
 
 void ICM42688_Config_UI_Filter(UIFiltOrd_t a_ord, UIFiltBW_t a_bw, UIFiltOrd_t g_ord, UIFiltBW_t g_bw) {
     uint8_t reg_acc_conf1 = ReadReg(REG_ACCEL_CONFIG1);
@@ -188,7 +239,7 @@ void ICM42688_Config_Gyro_Notch_Filter(uint8_t enable, float center_freq_hz, Gyr
     WriteReg(REG_GYRO_CONFIG_STATIC2, static2);
 
     float f_desired_khz = center_freq_hz / 1000.0f;
-    float coswz = cosf(2 * ICM_PI * f_desired_khz / 32.0f);
+    float coswz = cosf(2 * PI * f_desired_khz / 32.0f);
 
     int16_t nf_coswz_val;
     uint8_t nf_coswz_sel;

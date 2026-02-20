@@ -18,4 +18,3 @@ HAL_StatusTypeDef BSP_SPI_Receive(uint8_t *data, uint16_t size, uint32_t timeout
 SPI_TypeDef *BSP_SPI_GetInstance(void) {
     return ((SPI_HandleTypeDef *)ICM_SPI_HANDLE)->Instance;
 }
-

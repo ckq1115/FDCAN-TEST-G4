@@ -200,6 +200,11 @@ CCM_FUNC void IMU_Update_Task(void)
             imu_ctrl_flag.fusion_enabled = 1;
             break;
         case ERROR_STATE:
+            if (ICM42688_Init() == 0) // 尝试重新初始化IMU
+            {
+                imu_ctrl_state = TEMP_INIT; // 成功则回到初始状态
+                break;
+            }
             Set_Heater_PWM(0); // 关闭加热片
             WS2812_SetPixel(0, 255, 0, 0); // 红色表示错误
             break;
@@ -292,17 +297,26 @@ void IMU_Gyro_Calib_Initiate(void)
 void IMU_Status_Check(void) {
     static float last_sum = 0;
     static uint16_t stuck_cnt = 0;
-    // 静态零值检测，如果加速度或陀螺仪数据全为零，判定为异常状态
+    static uint16_t zero_cnt = 0; // 新增：全零检测计数器
+
+    // 1. 静态零值检测，判断加速度或陀螺仪是否全为0
     if ((fabsf(IMU_Data.accel[0]) < 1e-6f && fabsf(IMU_Data.accel[1]) < 1e-6f && fabsf(IMU_Data.accel[2]) < 1e-6f)
-    ||(fabsf(IMU_Data.gyro[0]) < 1e-6f && fabsf(IMU_Data.gyro[1]) < 1e-6f && fabsf(IMU_Data.gyro[2]) < 1e-6f))
+     || (fabsf(IMU_Data.gyro[0]) < 1e-6f && fabsf(IMU_Data.gyro[1]) < 1e-6f && fabsf(IMU_Data.gyro[2]) < 1e-6f))
     {
-        imu_ctrl_state = ERROR_STATE;
+        if (++zero_cnt >= 2) { // 连续2个周期全为0才判定为异常，避免第一次启动时数据全零状态误判
+            imu_ctrl_state = ERROR_STATE;
+        }
+    } else {
+        zero_cnt = 0; // 只要有数据不为 0，立即重置计数器
     }
-    // 数据卡死检测，将七个数据求和，若连续100次采样完全一致，判定为传感器内部逻辑死锁
+
+    // 2. 数据卡死检测
+    // 将六轴数据求和，若连续 100 次采样完全一致，判定为传感器内部逻辑死锁（SPI/I2C 还在传，但数据不更新）
     float sum = 0;
     for(int i=0; i<3; i++) {
         sum += IMU_Data.accel[i] + IMU_Data.gyro[i];
     }
+
     if (fabsf(sum - last_sum) < 1e-7f) {
         if (++stuck_cnt > 100) {
             imu_ctrl_state = ERROR_STATE;
@@ -311,7 +325,7 @@ void IMU_Status_Check(void) {
         stuck_cnt = 0;
         last_sum = sum;
     }
-    // 温度边界保护，若温度超过50℃或低于0℃，则判定为异常状态
+    // 3. 温度边界保护
     if (IMU_Data.temp > 50.0f || IMU_Data.temp < 0.0f) {
         imu_ctrl_state = ERROR_STATE;
     }

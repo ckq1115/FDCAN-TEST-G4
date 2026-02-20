@@ -12,13 +12,38 @@ void Get_UID(uint32_t *uid) {
 }
 
 CCM_FUNC void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    static uint32_t last_trigger_cnt = 0;
-    float actual_period;
-    if (htim->Instance == TIM4) {
-        actual_period = DWT_GetDeltaT(&last_trigger_cnt);
-        (imu_ctrl_state == ERROR_STATE) ? WS2812_UpdateBreathing(0, 0.2f) : WS2812_UpdateBreathing(0, 2.0f);
-        System_Root(&ROOT_Status, &C_DBUS, &All_Motor, NULL);
-        //DJI_Current_Ctrl(&hfdcan3,0x1FE,0,0,1000,0);
+        if (htim->Instance == TIM4) {
+
+        }
+}
+static uint8_t icm_tx_buf[15];//包含寄存器地址和14字节数据，预先填充寄存器地址以优化DMA读取
+static uint8_t icm_rx_buf[15];//包含寄存器地址和14字节数据，预先填充寄存器地址以优化DMA读取
+static uint8_t icm_raw_cache[14];//DMA读取完成后会先存放在这里，等待主任务处理转换为物理量
+static TaskHandle_t xIMUTaskHandle = NULL;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    // 1. 显式声明并初始化xHigherPriorityTaskWoken（关键修复！）
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    if (GPIO_Pin == ICM_DRDY_PIN) {
+        ICM42688_StartRead_IntDMA(icm_tx_buf, icm_rx_buf);
+        // 清除MCU EXTI挂起位
+        __HAL_GPIO_EXTI_CLEAR_IT(ICM_DRDY_PIN);
+        // 触发APP层任务（此时xHigherPriorityTaskWoken已正确声明）
+        if(xIMUTaskHandle != NULL) {
+            xTaskNotifyFromISR(xIMUTaskHandle,
+                              0,
+                              eIncrement,
+                              &xHigherPriorityTaskWoken); // 现在变量已声明
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        }
+    }
+}
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi == ICM_SPI_HANDLE) {
+        ICM_CS_PORT->BSRR = ICM_CS_PIN;
+        memcpy(icm_raw_cache, &icm_rx_buf[1], sizeof(icm_raw_cache));
     }
 }
 
@@ -29,25 +54,28 @@ static float imu_operate_us = 0;
 void IMU_Task(void *argument)
 {
     (void)argument;
+    xIMUTaskHandle = xTaskGetCurrentTaskHandle();
     ICM42688_Init();
+    // 预填充DMA缓冲区：寄存器地址+0xFF占位数据，优化后续DMA读取效率
+    icm_tx_buf[0] = (REG_TEMP_DATA1 | 0x80);
+    for (int i = 1; i < (int)sizeof(icm_tx_buf); i++) {
+        icm_tx_buf[i] = 0xFF;
+    }
     // 设置 FreeRTOS 任务周期为 1Tick (1ms)
     portTickType xLastWakeTime = xTaskGetTickCount();
     for(;;)
     {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
         uint32_t cnt_last = DWT->CYCCNT;
-        ICM42688_Read_Fast(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
+        //ICM42688_Read_Fast(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
+        ICM42688_ResolveRaw(icm_raw_cache, IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
         IMU_Update_Task();
         uint32_t operate_end = DWT->CYCCNT;
         uint32_t cycle_diff = operate_end - cnt_last;
         imu_operate_us = cycle_diff / 170;
         static uint32_t exec_start_cnt = 0;
         dt_s = DWT_GetDeltaT(&exec_start_cnt);
-        if(xTaskGetTickCount() - xLastWakeTime > 1)
-        {
-            xLastWakeTime = xTaskGetTickCount();
-        }
-        vTaskDelayUntil(&xLastWakeTime, 1);
     }
 }
 float a = 0;
@@ -60,6 +88,11 @@ void Motor_Task(void *argument)
     //Motor_Mode(&hfdcan1,1,0x200,0xfc);
     for(;;)
     {
+        static uint32_t last_trigger_cnt = 0;
+        float actual_period;
+        actual_period = DWT_GetDeltaT(&last_trigger_cnt);
+            (imu_ctrl_state == ERROR_STATE) ? WS2812_UpdateBreathing(0, 0.2f) : WS2812_UpdateBreathing(0, 2.0f);
+            System_Root(&ROOT_Status, &C_DBUS, &All_Motor, NULL);
         //W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
         //Speed_Ctrl(&hfdcan1,1,IMU_Data.yaw);
         //DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);

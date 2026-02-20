@@ -4,7 +4,7 @@
 #ifndef G4_FRAMEWORK_ICM42688P_H
 #define G4_FRAMEWORK_ICM42688P_H
 
-#include "../../BSP/Inc/BSP_SPI.h"
+#include "BSP_SPI.h"
 
 /* Register address (bank in high byte, addr in low byte) */
 #define REG_BANK_SEL        0x76
@@ -26,6 +26,8 @@
 #define REG_WHO_AM_I        0x0075
 #define REG_GYRO_CONFIG1        0x0051
 #define REG_ACCEL_CONFIG1       0x0053
+#define REG_INT_CONFIG1          0x0064  // 新增：异步复位配置寄存器
+#define REG_INT_ENABLE0          0x0062  // 修正：真正的中断使能寄存器（DRDY等）
 // BANK 1
 #define REG_GYRO_CONFIG_STATIC2 0x010B
 #define REG_GYRO_CONFIG_STATIC3 0x010C
@@ -120,6 +122,8 @@ typedef enum {
     GYRO_NF_BW_10HZ   = 7,
 } GyroNFBW_t;
 
+#define ICM_DMA_FRAME_LEN  15
+
 void ICM42688_Config_UI_Filter(UIFiltOrd_t a_ord, UIFiltBW_t a_bw, UIFiltOrd_t g_ord, UIFiltBW_t g_bw);
 void ICM42688_Config_Gyro_Notch_Filter(uint8_t enable, float center_freq_hz, GyroNFBW_t bw_sel);
 void ICM42688_Config_AAF(uint8_t is_accel, uint8_t delt, uint16_t deltSqr, uint8_t bitshift);
@@ -133,6 +137,13 @@ void ICM42688_Config_FIFO(uint8_t enable);
 void ICM42688_SetFormat(ODR_t a_odr, AccelFS_t a_fsr, ODR_t g_odr, GyroFS_t g_fsr);
 void ICM42688_read(float gyro[3], float accel[3], float *temperature);
 void ICM42688_Read_Fast(float gyro[3], float accel[3], float *temperature);
+void ICM42688_ResolveRaw(const uint8_t raw_data[14], float gyro[3], float accel[3], float *temperature);
+
+void ICM42688_StartRead_IntDMA(uint8_t tx_buf[ICM_DMA_FRAME_LEN], uint8_t rx_buf[ICM_DMA_FRAME_LEN]);
+uint8_t ICM42688_Read_IntDMA(float gyro[3], float accel[3], float *temperature);
+void ICM42688_OnExti(void);
+void ICM42688_OnSpiDmaCplt(SPI_HandleTypeDef *hspi);
+void ICM42688_OnSpiError(SPI_HandleTypeDef *hspi);
 
 #endif // G4_FRAMEWORK_ICM42688P_H
 
