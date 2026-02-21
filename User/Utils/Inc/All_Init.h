@@ -1,0 +1,40 @@
+//
+// Created by CaoKangqi on 2026/2/13.
+//
+
+#ifndef G4_FRAMEWORK_ALL_INIT_H
+#define G4_FRAMEWORK_ALL_INIT_H
+
+#include <string.h>
+#include "main.h"
+#include "DBUS.h"
+#include "DJI_Motor.h"
+#include "DM_Motor.h"
+#include "ICM42688P.h"
+#include "tim.h"
+#include "usart.h"
+#include "WS2812.h"
+#include "controller.h"
+#include "QuaternionEKF.h"
+#include "Vofa.h"
+#include "spi.h"
+#include "task.h"
+#include "mahony_filter.h"
+#include "user_lib.h"
+#include "IMU_Task.h"
+#include "All_define.h"
+#include "cmsis_os2.h"
+#include "All_Motor.h"
+#include "Power_CAP.h"
+#include "System_Status.h"
+#include "W25N01GV.h"
+
+extern uint8_t DBUS_RX_DATA[18];
+extern DBUS_Typedef C_DBUS;
+extern DBUS_UNION_Typdef C_DBUS_UNION;
+
+extern MOTOR_Typdef All_Motor;
+
+extern ROOT_STATUS_Typedef ROOT_Status;
+void All_Init(void);
+#endif //G4_FRAMEWORK_ALL_INIT_H
