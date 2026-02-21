@@ -1,8 +1,0 @@
-//
-// Created by CaoKangqi on 2026/2/18.
-//
-
-#ifndef G4_FRAMEWORK_CHASSIS_TASK_H
-#define G4_FRAMEWORK_CHASSIS_TASK_H
-
-#endif //G4_FRAMEWORK_CHASSIS_TASK_H
