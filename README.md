@@ -20,17 +20,40 @@ G4_Framework/
 ├── G4_Framework.ioc
 ├── STM32G473XX_FLASH.ld
 ├── startup_stm32g473xx.s
-└── G4一键启动OpenOCD.bat
+├── cmake/
+├── Core/
+├── Drivers/
+├── Middlewares/
+├── User/
+└── README.md
 ```
 
 ### Core - HAL 层
 由 STM32CubeMX 生成的 HAL 初始化、时钟配置、中断处理和系统启动相关代码。
 
+```
+Core/
+├── Inc/
+└── Src/
+```
+
 ### Drivers - 驱动库
 ARM CMSIS 接口与 STM32G4 HAL 驱动库。
 
+```
+Drivers/
+├── CMSIS/
+└── STM32G4xx_HAL_Driver/
+```
+
 ### Middlewares - 中间件层
-包含 FreeRTOS 和 ST 中间件。中间件负责对外设接收到的数据进行处理并发布到指令中枢；同时包含系统总状态机，收集各任务状态并联合调控。
+包含 ST 与第三方中间件目录（如 FreeRTOS）。
+
+```
+Middlewares/
+├── ST/
+└── Third_Party/
+```
 
 ---
 
@@ -43,13 +66,13 @@ User 目录按模块分层组织，便于维护和扩展。
 ```
 User/Algorithm/
 ├── Inc/
-│   ├── CKQ_MATH.h                     # 数学工具与通用计算
-│   ├── controller.h                   # 控制算法接口（PID 等）
+│   ├── CKQ_MATH.h                     # 自封装的数学库
+│   ├── controller.h                   # 控制算法接口（如 PID）
 │   ├── kalman_filter.h                # 卡尔曼滤波接口
 │   ├── mahony_filter.h                # Mahony 姿态滤波接口
 │   └── QuaternionEKF.h                # 四元数 EKF 接口
 └── Src/
-    ├── CKQ_MATH.c                     # 数学工具实现
+    ├── CKQ_MATH.c                     # 数学库实现
     ├── controller.c                   # 控制算法实现
     ├── kalman_filter.c                # 卡尔曼滤波实现
     ├── mahony_filter.c                # Mahony 姿态滤波实现
@@ -85,14 +108,14 @@ User/BSP/
 ├── Inc/
 │   ├── BSP-FDCAN.h                    # FDCAN 板级接口
 │   ├── BSP_DWT.h                      # DWT 计时接口
-│   ├── BSP_SPI.h                      # SPI 板级封装
-│   ├── BSP_W25N01GV.h                 # W25N01GV Flash 接口
+│   ├── BSP_QSPI.h                     # QSPI 板级接口
+│   ├── BSP_SPI.h                      # SPI 板级接口
 │   └── WS2812.h                       # WS2812 灯带接口
 └── Src/
     ├── BSP_DWT.c                      # DWT 计时实现
     ├── BSP_FDCAN.c                    # FDCAN 板级实现
+    ├── BSP_QSPI.c                     # QSPI 板级实现
     ├── BSP_SPI.c                      # SPI 板级实现
-    ├── BSP_W25N01GV.c                 # W25N01GV Flash 实现
     └── WS2812.c                       # WS2812 灯带实现
 ```
 
@@ -108,19 +131,21 @@ User/Device/
 │   ├── DJI_Motor.h                    # DJI 电机接口
 │   ├── DM_Motor.h                     # 达妙电机接口
 │   ├── ICM42688P.h                    # ICM42688P 设备接口
-│   └── Power_CAP.h                    # 超级电容接口
+│   ├── Power_CAP.h                    # 超级电容接口
+│   └── W25N01GV.h                     # W25N01GV Flash 接口
 └── Src/
     ├── DBUS.c                         # 遥控接收实现
     ├── DJI_Motor.c                    # DJI 电机实现
     ├── DM_Motor.c                     # 达妙电机实现
     ├── ICM42688P.c                    # ICM42688P 设备实现
-    └── Power_CAP.c                    # 超级电容实现
+    ├── Power_CAP.c                    # 超级电容实现
+    └── W25N01GV.c                     # W25N01GV Flash 实现
 ```
 
 ---
 
 #### 5) Middleware 中间件层
-系统级数据处理、状态汇总与指令中枢。
+系统级数据处理与状态汇总。
 
 ```
 User/Middleware/
@@ -134,7 +159,7 @@ User/Middleware/
 ---
 
 #### 6) App 应用层
-业务逻辑与任务调度层。App 从指令中枢订阅所需数据，并实现机器人行为逻辑。
+业务逻辑与任务调度层。
 
 ```
 User/App/
@@ -162,20 +187,3 @@ HAL
 ```
 
 Utils 可被各层调用。
-
-
-## 构建说明
-### Debug
-```bash
-cmake --preset Debug
-cmake --build --preset Debug
-```
-
-### Release
-```bash
-cmake --preset Release
-cmake --build --preset Release
-```
-
-## 下载与调试
-使用 `G4一键启动OpenOCD.bat` 启动 OpenOCD 进行调试。

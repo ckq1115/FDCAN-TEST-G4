@@ -1,7 +1,7 @@
 //
 // Created by CaoKangqi on 2026/2/14.
 //
-#include "../Inc/System_Status.h"
+#include "System_Status.h"
 
 #include <stdbool.h>
 
@@ -13,6 +13,10 @@
 void System_Root(ROOT_STATUS_Typedef *Root, DBUS_Typedef *DBUS, MOTOR_Typdef *MOTOR, CAP_RXDATA *CAP_GET)
 {
     All_Status(Root, DBUS, MOTOR, CAP_GET);
+    static uint32_t led_tick = 0;
+    if (led_tick++ % 20 == 0) {
+
+    }
     LED_Show_Status(Root);
 }
 
@@ -99,7 +103,7 @@ void LED_Show_Status(ROOT_STATUS_Typedef *Root)
     WS2812_SetPixel(3, dbus->r, dbus->g, dbus->b);
     WS2812_UpdateBreathing(3, dbus->breathe);
 
-
+    (imu_ctrl_state == ERROR_STATE) ? WS2812_UpdateBreathing(0, 0.2f) : WS2812_UpdateBreathing(0, 2.0f);
     if (motor->buzzer && dbus->buzzer) {
         Buzzer_UpdateCycle(0.25f, 0.5f, 20);
     }
@@ -109,7 +113,7 @@ void LED_Show_Status(ROOT_STATUS_Typedef *Root)
     else {
         Buzzer_Stop();
     }
-    WS2812_Submit();
+    WS2812_Send();
 }
 
 /**

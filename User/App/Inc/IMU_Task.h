@@ -56,7 +56,7 @@ extern IMU_CTRL_FLAG_t imu_ctrl_flag;
 
 void Set_Heat_Power(float pwm);
 void IMU_Temp_PID_Init(void);
-void IMU_Update_Task(void);
+void IMU_Update_Task(float dt_s);
 void IMU_Gyro_Zero_Calibration_Task(void);
 void IMU_Gyro_Calib_Initiate(void);
 void IMU_Status_Check(void);

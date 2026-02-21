@@ -99,9 +99,9 @@ void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 169;
+  htim4.Init.Prescaler = 1699;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 999;
+  htim4.Init.Period = 1999;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -318,14 +318,14 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 
     /* TIM8 DMA Init */
     /* TIM8_CH4 Init */
-    hdma_tim8_ch4.Instance = DMA1_Channel2;
+    hdma_tim8_ch4.Instance = DMA2_Channel2;
     hdma_tim8_ch4.Init.Request = DMA_REQUEST_TIM8_CH4;
     hdma_tim8_ch4.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_tim8_ch4.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_tim8_ch4.Init.MemInc = DMA_MINC_ENABLE;
     hdma_tim8_ch4.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
     hdma_tim8_ch4.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_tim8_ch4.Init.Mode = DMA_NORMAL;
+    hdma_tim8_ch4.Init.Mode = DMA_CIRCULAR;
     hdma_tim8_ch4.Init.Priority = DMA_PRIORITY_LOW;
     if (HAL_DMA_Init(&hdma_tim8_ch4) != HAL_OK)
     {

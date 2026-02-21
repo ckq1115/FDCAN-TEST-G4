@@ -2,47 +2,87 @@
 // Created by CaoKangqi on 2026/1/23.
 //
 #include "WS2812.h"
+
+#include <math.h>
 #include <string.h>
-#include "tim.h"
+
 #include "BSP_DWT.h"
-#include "All_define.h"
-// 增加 50 个 0 作为复位信号
-#define PWM_BUF_LEN (MAX_LED * 24 + WS2812_RESET_LEN)
+#include "tim.h"
 
-CCM_DATA static WS2812_Color_t LED_Data[MAX_LED];
-static uint16_t PWM_Buffer[PWM_BUF_LEN];
-CCM_DATA static uint8_t Global_Brightness = 255;
-CCM_DATA static volatile uint8_t isSending = 0;
+// ================= 查表优化区域 =================
 
-void WS2812_Init(void) {
-    isSending = 0;
-    memset(PWM_Buffer, 0, sizeof(PWM_Buffer));
-    WS2812_Clear();
-    WS2812_Send();
-}
+// 0-255 的正弦波表 (0 -> 255 -> 0)，用于呼吸灯，避免 sinf 计算
+const uint8_t Sine_Table[256] = {
+    0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 17, 18, 20, 22, 24, 26, 28, 30, 32, 35, 37, 39, 42, 44, 47, 49, 52, 55, 58, 60, 63, 66, 69, 72, 75, 78, 81, 85, 88, 91, 94, 97, 101, 104, 107, 111, 114, 117, 121, 124, 127, 131, 134, 137, 141, 144, 147, 150, 154, 157, 160, 163, 167, 170, 173, 176, 179, 182, 185, 188, 191, 194, 197, 200, 202, 205, 208, 210, 213, 215, 217, 220, 222, 224, 226, 229, 231, 232, 234, 236, 238, 239, 241, 242, 244, 245, 246, 248, 249, 250, 251, 251, 252, 253, 253, 254, 254, 255, 255, 255, 255, 255, 255, 255, 254, 254, 253, 253, 252, 251, 251, 250, 249, 248, 246, 245, 244, 242, 241, 239, 238, 236, 234, 232, 231, 229, 226, 224, 222, 220, 217, 215, 213, 210, 208, 205, 202, 200, 197, 194, 191, 188, 185, 182, 179, 176, 173, 170, 167, 163, 160, 157, 154, 150, 147, 144, 141, 137, 134, 131, 127, 124, 121, 117, 114, 111, 107, 104, 101, 97, 94, 91, 88, 85, 81, 78, 75, 72, 69, 66, 63, 60, 58, 55, 52, 49, 47, 44, 42, 39, 37, 35, 32, 30, 28, 26, 24, 22, 20, 18, 17, 15, 13, 12, 11, 9, 8, 7, 6, 5, 4, 3, 2, 2, 1, 1, 1, 0, 0, 0
+};
 
-// 增加亮度缩放逻辑
-void WS2812_SetPixel(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
-    if (index >= MAX_LED) return;
+// ================= 变量定义 =================
 
-    // 实时计算亮度缩放，避免修改原始数据缓冲区
-    if (Global_Brightness != 255) {
+// 1. 逻辑颜色数据 (保持全量，因为需要随机访问修改)
+static WS2812_Color_t Base_Color[MAX_LED];
+static WS2812_Color_t LED_Data[MAX_LED];
+
+// 2. 双缓冲 DMA 发送数组
+// 只包含 2 个 LED 的数据量 (24 bits * 2 = 48 words)
+// 前 24 个是 Buffer_A，后 24 个是 Buffer_B
+#define WS2812_DMA_BUF_LEN (24 * 2)
+uint16_t DMA_Buffer[WS2812_DMA_BUF_LEN];
+
+static uint8_t Global_Brightness = 255;
+static volatile uint8_t isSending = 0;
+static uint16_t send_pixel_idx = 0; // 当前正在填充第几个像素的数据
+
+// ================= 内部辅助函数 =================
+
+/**
+ * @brief 将一个 LED 的 RGB 数据填充到 DMA 缓冲区的指定位置
+ * @param ledIdx: LED_Data 数组中的索引 (如果是复位阶段，则不用)
+ * @param bufferOffset: DMA_Buffer 中的偏移 (0 或 24)
+ * @param isReset: 是否发送复位信号(0占空比)
+ */
+static void Fill_Buffer(uint16_t ledIdx, uint16_t bufferOffset, uint8_t isReset) {
+    if (isReset) {
+        memset(&DMA_Buffer[bufferOffset], 0, 24 * sizeof(uint16_t));
+        return;
+    }
+
+    // 获取颜色并计算全局亮度
+    uint8_t r = LED_Data[ledIdx].R;
+    uint8_t g = LED_Data[ledIdx].G;
+    uint8_t b = LED_Data[ledIdx].B;
+
+    // 简单的位移计算亮度，比 float 快得多
+    if (Global_Brightness < 255) {
         r = (r * Global_Brightness) >> 8;
         g = (g * Global_Brightness) >> 8;
         b = (b * Global_Brightness) >> 8;
     }
 
-    LED_Data[index].R = r;
-    LED_Data[index].G = g;
-    LED_Data[index].B = b;
+    // 组合颜色 GRB (WS2812 标准)
+    uint32_t color = ((uint32_t)g << 16) | ((uint32_t)r << 8) | (uint32_t)b;
+
+    // 填充 24 位 PWM 数据
+    for (int8_t i = 23; i >= 0; i--) {
+        DMA_Buffer[bufferOffset++] = (color & (1 << i)) ? WS2812_PWM_HIGH : WS2812_PWM_LOW;
+    }
 }
 
-void WS2812_SetBrightness(uint8_t brightness) {
-    Global_Brightness = brightness;
+// ================= 外部接口 =================
+
+void WS2812_Init(void) {
+    isSending = 0;
+    WS2812_Clear();
+    // 这里不需要预填充 PWM Buffer，Send 时会做
 }
 
-void WS2812_Clear(void) {
-    memset(LED_Data, 0, sizeof(LED_Data));
+void WS2812_SetPixel(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
+    if (index >= MAX_LED) return;
+    Base_Color[index].R = r;
+    Base_Color[index].G = g;
+    Base_Color[index].B = b;
+
+    // 初始化显示色，防止没调用 Update 前是黑的
+    LED_Data[index] = Base_Color[index];
 }
 
 void WS2812_SetAll(uint8_t r, uint8_t g, uint8_t b) {
@@ -51,176 +91,123 @@ void WS2812_SetAll(uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
-#include <math.h>
-
-/**
- * @brief  指定单灯呼吸逻辑（只负责计算亮度并填入 PWM 缓冲区）
- * @param  index:  LED 索引
- * @param  period: 呼吸周期（秒）
- */
-void WS2812_UpdateBreathing(uint16_t index, float period) {
-    if (index >= MAX_LED || period <= 0.0f) return;
-
-    // 1. 获取当前时间（DWT 高精度时间轴）
-    float currentTime = DWT_GetTimeline_s();
-
-    // 2. 计算当前亮度的比例因子 (0.0 ~ 1.0)
-    // 使用 cosf 偏移可以从最亮开始，或者 sinf 从灭开始
-    float factor = (sinf(2.0f * 3.1415926f * currentTime / period) + 1.0f) * 0.5f;
-
-    // 3. 从 LED_Data 获取基准颜色，并应用呼吸因子和全局亮度
-    // 这里直接计算出该灯的临时 GRB 值
-    uint8_t r = (uint8_t)(LED_Data[index].R * factor);
-    uint8_t g = (uint8_t)(LED_Data[index].G * factor);
-    uint8_t b = (uint8_t)(LED_Data[index].B * factor);
-
-    // 4. 将计算后的颜色实时填入 PWM_Buffer 对应的位置
-    // 每一个 LED 占用 24 个 uint16_t
-    uint32_t pos = index * 24;
-    uint32_t color = ((uint32_t)g << 16) | ((uint32_t)r << 8) | (uint32_t)b;
-
-    for (int8_t j = 23; j >= 0; j--) {
-        PWM_Buffer[pos++] = (color & (1 << j)) ? WS2812_PWM_HIGH : WS2812_PWM_LOW;
-    }
+void WS2812_Clear(void) {
+    memset(LED_Data, 0, sizeof(LED_Data));
 }
 
-/**
- * @brief  触发 DMA 发送（修改版的 Send，不再重新计算所有颜色，只负责发出去）
- * @note   在调用此函数前，确保已经通过 UpdateBreathing 或普通转换填充了 PWM_Buffer
- */
-void WS2812_Submit(void) {
-    if (isSending) return;
-    isSending = 1;
-    HAL_TIM_PWM_Start_DMA(&WS2812_TIM_HANDLE, WS2812_TIM_CHANNEL, (uint32_t *)PWM_Buffer, PWM_BUF_LEN);
-}
-
+// 核心发送函数
 void WS2812_Send(void) {
     if (isSending) return;
 
-    uint32_t pos = 0;
-    for (int i = 0; i < MAX_LED; i++) {
-        // 提取 GRB 数据
-        uint32_t color = ((uint32_t)LED_Data[i].G << 16) |
-                         ((uint32_t)LED_Data[i].R << 8)  |
-                          (uint32_t)LED_Data[i].B;
+    send_pixel_idx = 0; // 重置发送索引
 
-        // 展开循环优化性能
-        for (int8_t j = 23; j >= 0; j--) {
-            PWM_Buffer[pos++] = (color & (1 << j)) ? WS2812_PWM_HIGH : WS2812_PWM_LOW;
-        }
-    }
+    // 1. 预填充前两个 LED 的数据到 DMA 缓冲区
+    Fill_Buffer(0, 0, 0);  // 填充 Buffer前半部分 (LED 0)
+    Fill_Buffer(1, 24, 0); // 填充 Buffer后半部分 (LED 1)
 
-    // 确保 Reset 区间为 0
-    // 注意：最后 50 个元素在 Init 时已清零，且 Send 过程中不会被触碰
+    // 指向下一个要处理的像素
+    send_pixel_idx = 2;
 
     isSending = 1;
-    HAL_TIM_PWM_Start_DMA(&WS2812_TIM_HANDLE, WS2812_TIM_CHANNEL, (uint32_t *)PWM_Buffer, PWM_BUF_LEN);
+
+    // 2. 启动循环 DMA
+    // 注意：这里长度是 48 (WS2812_DMA_BUF_LEN)
+    HAL_TIM_PWM_Start_DMA(&WS2812_TIM_HANDLE, WS2812_TIM_CHANNEL, (uint32_t *)DMA_Buffer, WS2812_DMA_BUF_LEN);
 }
 
+
+// ================= 中断回调 (双缓冲逻辑核心) =================
+
+// 半传输完成 (Half Transfer) -> 刚刚发完了 Buffer 的前半部分 (0-23)
+// 此时 DMA 正在发后半部分，CPU 赶紧去填充前半部分
+void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance != WS2812_TIM_HANDLE.Instance) return;
+
+    // 如果还有 LED 数据没发完
+    if (send_pixel_idx < MAX_LED) {
+        Fill_Buffer(send_pixel_idx, 0, 0); // 填数据到前半段
+        send_pixel_idx++;
+    }
+    // 如果 LED 数据发完了，但是需要发 Reset 信号 (50us 的低电平)
+    else if (send_pixel_idx < MAX_LED + WS2812_RESET_SLOTS) {
+        Fill_Buffer(0, 0, 1); // 填 0 到前半段
+        send_pixel_idx++;
+    }
+    // 全发完了，不需要在这里停，通常在 TC (全传输) 里停比较整齐，或者让它跑完 reset
+}
+
+// 全传输完成 (Transfer Complete) -> 刚刚发完了 Buffer 的后半部分 (24-47)
+// 此时 DMA 回滚去发前半部分，CPU 赶紧去填充后半部分
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance != WS2812_TIM_HANDLE.Instance) return;
+
+    // 如果还有 LED 数据没发完
+    if (send_pixel_idx < MAX_LED) {
+        Fill_Buffer(send_pixel_idx, 24, 0); // 填数据到后半段
+        send_pixel_idx++;
+    }
+    // 发 Reset 信号
+    else if (send_pixel_idx < MAX_LED + WS2812_RESET_SLOTS) {
+        Fill_Buffer(0, 24, 1); // 填 0 到后半段
+        send_pixel_idx++;
+    }
+    // Reset 信号也发够了，停止发送
+    else {
+        HAL_TIM_PWM_Stop_DMA(&WS2812_TIM_HANDLE, WS2812_TIM_CHANNEL);
+        isSending = 0;
+
+        // 关键：最后手动拉低数据线，防止 PWM 停在高电平烧灯或乱码
+        // 具体实现看你的 GPIO 配置，通常 Stop DMA 后 GPIO 会回到初始状态(Reset)
+    }
+}
+
+
+// ================= 特效优化 (移除 math.h) =================
+
 /**
- * @brief HSV转RGB工具函数 (内部使用)
- * @param h 色调 [0, 255]
- * @param s 饱和度 [0, 255]
- * @param v 亮度 [0, 255]
+ * @brief  让指定灯珠按底色进行呼吸
+ * @param  index:  LED 索引
+ * @param  period: 呼吸周期 (秒)
  */
-static void HSV_To_RGB(uint8_t h, uint8_t s, uint8_t v, uint8_t *r, uint8_t *g, uint8_t *b) {
+void WS2812_UpdateBreathing(uint16_t index, float period) {
+    if (index >= MAX_LED) return;
+    uint16_t period_ms = (uint16_t)(period * 1000);
+    // 使用系统毫秒计数器代替 DWT 浮点时间
+    uint32_t now = HAL_GetTick();
+    // 将周期映射到 0-255 的查表索引
+    uint32_t idx = (now % period_ms) * 255 / period_ms;
+    uint32_t factor = Sine_Table[idx];
+
+    // 整数位移代替浮点缩放
+    LED_Data[index].R = (Base_Color[index].R * factor) >> 8;
+    LED_Data[index].G = (Base_Color[index].G * factor) >> 8;
+    LED_Data[index].B = (Base_Color[index].B * factor) >> 8;
+}
+
+// 供上层调用的无浮点 HSV 转 RGB (极其高效)
+// h: 0-255, s: 0-255, v: 0-255
+void WS2812_SetHSV(uint16_t index, uint8_t h, uint8_t s, uint8_t v) {
+    uint8_t r, g, b;
     uint8_t region, remainder, p, q, t;
 
     if (s == 0) {
-        *r = *g = *b = v;
-        return;
+        r = v; g = v; b = v;
+    } else {
+        region = h / 43;
+        remainder = (h - (region * 43)) * 6;
+
+        p = (v * (255 - s)) >> 8;
+        q = (v * (255 - ((s * remainder) >> 8))) >> 8;
+        t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
+
+        switch (region) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            default: r = v; g = p; b = q; break;
+        }
     }
-
-    region = h / 43;
-    remainder = (h % 43) * 6;
-
-    p = (v * (255 - s)) >> 8;
-    q = (v * (255 - ((s * remainder) >> 8))) >> 8;
-    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
-
-    switch (region) {
-        case 0: *r = v; *g = t; *b = p; break;
-        case 1: *r = q; *g = v; *b = p; break;
-        case 2: *r = p; *g = v; *b = t; break;
-        case 3: *r = p; *g = q; *b = v; break;
-        case 4: *r = t; *g = p; *b = v; break;
-        default: *r = v; *g = p; *b = q; break;
-    }
-}
-
-/**
- * @brief 四灯幻彩流水灯
- * @param speed 演变速度 (建议调用间隔 5-20ms)
- */
-void WS2812_RainbowCycle(uint8_t speed) {
-    static uint8_t j = 0; // 色调偏移量
-    uint8_t r, g, b;
-
-    // 我们只处理前 4 个 LED
-    for (int i = 0; i < MAX_LED; i++) {
-        // 每个灯的色调偏移 255/MAX_LED
-        HSV_To_RGB(j + (i * 64), 255, 50, &r, &g, &b);
-        WS2812_SetPixel(i, r, g, b); //
-    }
-
-    j += speed; // 增加偏移量，改变下一帧颜色
-    WS2812_Send(); // 发送数据到硬件
-}
-
-/**
- * @brief 单色跑马灯功能
- * @param r, g, b 跑马灯的颜色
- * @param speed 移动速度 (建议调用间隔 50-100ms)
- */
-void WS2812_SingleRunningLight(uint8_t r, uint8_t g, uint8_t b, uint16_t delay_ms) {
-    static uint16_t current_pos = 0; // 记录当前点亮的 LED 位置
-    //先清空所有灯的颜色数据
-    memset(LED_Data, 0, sizeof(LED_Data));
-    //设置当前位置的 LED 颜色
-    WS2812_SetPixel(current_pos, r, g, b);
-    //发送数据到硬件
-    WS2812_Send();
-    //更新位置，准备下一帧
-    current_pos++;
-    if (current_pos >= MAX_LED) {
-        current_pos = 0; // 跑完一圈后回到起点
-    }
-    //控制移动频率
-    HAL_Delay(delay_ms);
-}
-
-/**
- * @brief 带拖尾效果的单色跑马灯
- * @param r, g, b   跑马灯头部的颜色
- * @param decay     衰减系数 (1-255，数值越小尾巴越长，建议 180-220)
- * @param delay_ms  移动延时 (毫秒)，数值越小速度越快
- */
-void WS2812_TrailingRunningLight(uint8_t r, uint8_t g, uint8_t b, uint8_t decay, uint16_t delay_ms) {
-    static uint16_t head = 0; // 记录头部位置
-    //遍历所有 LED，对当前颜色进行衰减处理
-    for (int i = 0; i < MAX_LED; i++) {
-        // 计算方式：当前亮度 * decay / 256
-        LED_Data[i].R = (LED_Data[i].R * decay) >> 8;
-        LED_Data[i].G = (LED_Data[i].G * decay) >> 8;
-        LED_Data[i].B = (LED_Data[i].B * decay) >> 8;
-    }
-    //设置“头部”灯光的最高亮度
-    // 即使 head 位置之前有残余亮度，这里也会被重新置为最亮
-    WS2812_SetPixel(head, r, g, b);
-    //将计算好的颜色数据转换并发送
-    WS2812_Send();
-    //更新头部位置，实现循环
-    head = (head + 1) % MAX_LED;
-
-    // 5. 自定义延时
-    HAL_Delay(delay_ms);
-}
-
-// 改进的回调函数
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == WS2812_TIM_HANDLE.Instance) {
-        // 停止 DMA 防止持续输出最后一条占空比数据
-        HAL_TIM_PWM_Stop_DMA(&WS2812_TIM_HANDLE, WS2812_TIM_CHANNEL);
-        isSending = 0;
-    }
+    WS2812_SetPixel(index, r, g, b);
 }

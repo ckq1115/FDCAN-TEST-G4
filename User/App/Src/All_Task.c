@@ -13,7 +13,7 @@ void Get_UID(uint32_t *uid) {
 
 CCM_FUNC void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         if (htim->Instance == TIM4) {
-
+            System_Root(&ROOT_Status, &C_DBUS, &All_Motor, NULL);
         }
 }
 static uint8_t icm_tx_buf[15];//包含寄存器地址和14字节数据，预先填充寄存器地址以优化DMA读取
@@ -48,7 +48,6 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 }
 
 static uint32_t INS_DWT_Count = 0; // DWT计数基准
-static float dt_s = 0.0f; // 任务单次执行耗时（秒）
 static float imu_period_s = 0.0f;
 static float imu_operate_us = 0;
 void IMU_Task(void *argument)
@@ -61,48 +60,49 @@ void IMU_Task(void *argument)
     for (int i = 1; i < (int)sizeof(icm_tx_buf); i++) {
         icm_tx_buf[i] = 0xFF;
     }
-    // 设置 FreeRTOS 任务周期为 1Tick (1ms)
-    portTickType xLastWakeTime = xTaskGetTickCount();
+    INS_DWT_Count = DWT->CYCCNT;
     for(;;)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
+
         uint32_t cnt_last = DWT->CYCCNT;
         //ICM42688_Read_Fast(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
         ICM42688_ResolveRaw(icm_raw_cache, IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
-        IMU_Update_Task();
+        IMU_Update_Task(imu_period_s);
         uint32_t operate_end = DWT->CYCCNT;
         uint32_t cycle_diff = operate_end - cnt_last;
         imu_operate_us = cycle_diff / 170;
-        static uint32_t exec_start_cnt = 0;
-        dt_s = DWT_GetDeltaT(&exec_start_cnt);
+
     }
 }
-float a = 0;
+static uint32_t WS2812_DWT = 0;
+static float WS2812_s = 0.0f;
+static float WS2812_us = 0.0f;
 uint8_t flash_id[3] = {0};
 void Motor_Task(void *argument)
 {
     (void)argument;
     W25N01GV_Init();
     Get_UID(stm32_id);
+    WS2812_DWT = DWT->CYCCNT;
     //Motor_Mode(&hfdcan1,1,0x200,0xfc);
     for(;;)
     {
-        static uint32_t last_trigger_cnt = 0;
-        float actual_period;
-        actual_period = DWT_GetDeltaT(&last_trigger_cnt);
-            (imu_ctrl_state == ERROR_STATE) ? WS2812_UpdateBreathing(0, 0.2f) : WS2812_UpdateBreathing(0, 2.0f);
-            System_Root(&ROOT_Status, &C_DBUS, &All_Motor, NULL);
+        WS2812_s = DWT_GetDeltaT(&WS2812_DWT);
+
+        uint32_t cnt_1last = DWT->CYCCNT;
+
         //W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
-        //Speed_Ctrl(&hfdcan1,1,IMU_Data.yaw);
-        //DM_Motor_Send(&hfdcan1, 0x3FE, a, 0, 0, 0);
         VOFA_justfloat(
-            dt_s,
             IMU_Data.pitch,
             IMU_Data.roll,
             IMU_Data.yaw,
             IMU_Data.YawTotalAngle,
-            imu_period_s,imu_operate_us,0,0,0);
+            imu_period_s,imu_operate_us,WS2812_us,WS2812_s,imu_operate_us+WS2812_us,0);
+        uint32_t operate_1end = DWT->CYCCNT;
+        uint32_t cycle_1diff = operate_1end - cnt_1last;
+        WS2812_us = cycle_1diff / 170;
         osDelay(1);
     }
 }

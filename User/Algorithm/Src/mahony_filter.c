@@ -72,13 +72,13 @@ CCM_FUNC void RotationMatrix_update(struct MAHONY_FILTER_t *f)
  */
 CCM_FUNC void mahony_update(struct MAHONY_FILTER_t *f,
                    float gx, float gy, float gz,
-                   float ax, float ay, float az)
+                   float ax, float ay, float az,float dt)
 {
     gx *= DEG2RAD;
     gy *= DEG2RAD;
     gz *= DEG2RAD;
-    float dt = f->dt;
-    float halfT = 0.5f * dt;
+    f->dt = dt;
+    float halfT = 0.5f * f->dt;
 
     float32_t sum_sq;
     sum_sq = ax*ax + ay*ay + az*az;

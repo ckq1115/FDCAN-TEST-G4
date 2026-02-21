@@ -87,7 +87,7 @@ void IMU_Temp_Control_Init(void)
  * @brief IMU数据更新与控制状态机执行函数
  * @note 该函数在每次IMU数据更新后调用，负责执行温控PID计算、状态转换和陀螺仪校准等核心逻辑
  */
-CCM_FUNC void IMU_Update_Task(void)
+CCM_FUNC void IMU_Update_Task(float dt_s)
 {
     float now_temp = IMU_Data.temp;
     IMU_Status_Check();// 监测IMU数据，若不正常则进入错误状态
@@ -191,7 +191,7 @@ CCM_FUNC void IMU_Update_Task(void)
             //mahony姿态融合更新，实测效果还不错，QuaternionEKF有想法的自己整吧
             mahony_update(&mahony_filter,
             IMU_Data.gyro[0], IMU_Data.gyro[1], IMU_Data.gyro[2],
-            IMU_Data.accel[0], IMU_Data.accel[1], IMU_Data.accel[2]);
+            IMU_Data.accel[0], IMU_Data.accel[1], IMU_Data.accel[2],dt_s);
             mahony_output(&mahony_filter);
             IMU_Data.pitch = mahony_filter.pitch;
             IMU_Data.roll = mahony_filter.roll;
@@ -200,7 +200,7 @@ CCM_FUNC void IMU_Update_Task(void)
             imu_ctrl_flag.fusion_enabled = 1;
             break;
         case ERROR_STATE:
-            if (ICM42688_Init() == 0) // 尝试重新初始化IMU
+            if (ICM42688_Init() == 1) // 尝试重新初始化IMU，成功则认为错误已恢复
             {
                 imu_ctrl_state = TEMP_INIT; // 成功则回到初始状态
                 break;

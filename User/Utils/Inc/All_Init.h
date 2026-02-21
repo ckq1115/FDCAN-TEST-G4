@@ -10,7 +10,7 @@
 #include "DBUS.h"
 #include "DJI_Motor.h"
 #include "DM_Motor.h"
-#include "../../Device/Inc/ICM42688P.h"
+#include "ICM42688P.h"
 #include "tim.h"
 #include "usart.h"
 #include "WS2812.h"
@@ -26,8 +26,8 @@
 #include "cmsis_os2.h"
 #include "All_Motor.h"
 #include "Power_CAP.h"
-#include "../../Middleware/Inc/System_Status.h"
-#include "../../Device/Inc/W25N01GV.h"
+#include "System_Status.h"
+#include "W25N01GV.h"
 
 extern uint8_t DBUS_RX_DATA[18];
 extern DBUS_Typedef C_DBUS;

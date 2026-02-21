@@ -51,7 +51,7 @@ struct MAHONY_FILTER_t
     // 函数指针
     void (*mahony_update)(struct MAHONY_FILTER_t *mahony_filter,
                           float gx, float gy, float gz,
-                          float ax, float ay, float az);
+                          float ax, float ay, float az,float dt);
     void (*mahony_output)(struct MAHONY_FILTER_t *mahony_filter);
 };
 
@@ -61,7 +61,7 @@ void mahony_init(struct MAHONY_FILTER_t *mahony_filter, float Kp, float Ki, floa
 void mahony_input(struct MAHONY_FILTER_t *mahony_filter, Axis3f gyro, Axis3f acc);
 void mahony_update(struct MAHONY_FILTER_t *mahony_filter,
                    float gx, float gy, float gz,
-                   float ax, float ay, float az);
+                   float ax, float ay, float az,float dt);
 void mahony_output(struct MAHONY_FILTER_t *mahony_filter);
 void RotationMatrix_update(struct MAHONY_FILTER_t *mahony_filter);
 

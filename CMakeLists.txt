@@ -156,6 +156,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         User/Device/Inc
         User/Algorithm/Inc
         User/Utils/Inc
+        User/Middleware/Inc
         Drivers/CMSIS/Include
         Drivers/CMSIS/DSP/Include
         Drivers/CMSIS/Device/ST/STM32G4xx/Include
