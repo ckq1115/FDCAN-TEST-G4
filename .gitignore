@@ -1,8 +1,9 @@
 build
 G4_Framework.jdebug
 G4_Framework.jdebug.user
-.settings
-.vscode
+.settings/
+.idea/
+.vscode/
 .ideagit rm -r --cached .
 mx.scratch
 
