@@ -87,8 +87,10 @@ uint8_t ICM42688_Init(void) {
 
     ICM42688_Config_AAF(1, 7, 49, 9);
     ICM42688_Config_AAF(0, 7, 49, 9);
-    ICM42688_Config_UI_Filter(UI_FILT_ORD_2ND, UI_FILT_BW_ODR_DIV_4, UI_FILT_ORD_2ND, UI_FILT_BW_ODR_DIV_4);
-    //ICM42688_Config_Gyro_Notch_Filter(1, 1000.0f, GYRO_NF_BW_40HZ);
+    ICM42688_Config_UI_Filter(UI_FILT_ORD_2ND, UI_FILT_BW_ODR_DIV_2, UI_FILT_ORD_2ND, UI_FILT_BW_ODR_DIV_2);
+    ICM42688_Config_Gyro_Notch_Filter(1, 98.0f, GYRO_NF_BW_10HZ);
+    ICM42688_Config_Gyro_Notch_Filter(1, 219.0f, GYRO_NF_BW_10HZ);
+    ICM42688_Config_Gyro_Notch_Filter(1, 328.0f, GYRO_NF_BW_10HZ);
     SelectBank(0);
 
 
@@ -101,7 +103,7 @@ void ICM42688_SetFormat(ODR_t a_odr, AccelFS_t a_fsr, ODR_t g_odr, GyroFS_t g_fs
     WriteReg(REG_GYRO_CONFIG0,  (g_fsr << 5) | g_odr);
 
     acc_res = (16.0f / (float)(1 << a_fsr)) / 32768.0f * 9.81f;
-    gyr_res = (2000.0f / (float)(1 << g_fsr)) / 32768.0f;
+    gyr_res = (2000.0f / (float)(1 << g_fsr)) / 32768.0f * DEG2RAD;
 }
 
 void ICM42688_Config_FIFO(uint8_t enable) {
@@ -238,14 +240,25 @@ void ICM42688_Config_Gyro_Notch_Filter(uint8_t enable, float center_freq_hz, Gyr
     }
     WriteReg(REG_GYRO_CONFIG_STATIC2, static2);
 
-    float f_desired_khz = center_freq_hz / 1000.0f;
-    float coswz = cosf(2 * PI * f_desired_khz / 32.0f);
+    if (center_freq_hz <= 0.0f) {
+        static2 |= 0x01;
+        WriteReg(REG_GYRO_CONFIG_STATIC2, static2);
+        return;
+    }
+
+    float omega = 2.0f * PI * (center_freq_hz / 32000.0f);
+    if (omega > PI) {
+        omega = PI;
+    }
+    float coswz = cosf(omega);
 
     int16_t nf_coswz_val;
     uint8_t nf_coswz_sel;
 
     if (fabsf(coswz) <= 0.875f) {
         nf_coswz_val = (int16_t)roundf(coswz * 256.0f);
+        if (nf_coswz_val > 224) nf_coswz_val = 224;
+        if (nf_coswz_val < -224) nf_coswz_val = -224;
         nf_coswz_sel = 0;
     } else {
         nf_coswz_sel = 1;
@@ -254,6 +267,11 @@ void ICM42688_Config_Gyro_Notch_Filter(uint8_t enable, float center_freq_hz, Gyr
         } else {
             nf_coswz_val = (int16_t)roundf(-8.0f * (1.0f + coswz) * 256.0f);
         }
+        if (nf_coswz_val == 0) {
+            nf_coswz_val = (coswz >= 0.0f) ? 1 : -1;
+        }
+        if (nf_coswz_val > 255) nf_coswz_val = 255;
+        if (nf_coswz_val < -255) nf_coswz_val = -255;
     }
 
     uint8_t low_byte = (uint8_t)(nf_coswz_val & 0xFF);
@@ -261,17 +279,20 @@ void ICM42688_Config_Gyro_Notch_Filter(uint8_t enable, float center_freq_hz, Gyr
     WriteReg(REG_GYRO_CONFIG_STATIC7, low_byte);
     WriteReg(REG_GYRO_CONFIG_STATIC8, low_byte);
 
-    uint8_t msb = (nf_coswz_val >> 8) & 0x01;
-    uint8_t static9 = 0;
-
-    if(msb) static9 |= (1<<0) | (1<<1) | (1<<2);
-    if(nf_coswz_sel) static9 |= (1<<3) | (1<<4) | (1<<5);
-
+    uint8_t msb = (uint8_t)((nf_coswz_val >> 8) & 0x01);
+    uint8_t static9 = ReadReg(REG_GYRO_CONFIG_STATIC9);
+    static9 &= ~(0x3F);
+    if (msb) {
+        static9 |= (1 << 0) | (1 << 1) | (1 << 2);
+    }
+    if (nf_coswz_sel) {
+        static9 |= (1 << 3) | (1 << 4) | (1 << 5);
+    }
     WriteReg(REG_GYRO_CONFIG_STATIC9, static9);
 
     uint8_t static10 = ReadReg(REG_GYRO_CONFIG_STATIC10);
-    static10 &= ~(0x70);
-    static10 |= (bw_sel << 4);
+    static10 &= ~(0x38);
+    static10 |= (uint8_t)(bw_sel << 3);
     WriteReg(REG_GYRO_CONFIG_STATIC10, static10);
 }
 

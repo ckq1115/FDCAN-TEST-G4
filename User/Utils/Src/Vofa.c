@@ -41,5 +41,5 @@ void VOFA_justfloat(float a,float b,float c,float d,float e,float f,float g,floa
     data.data2[41]=0x00;
     data.data2[42]=0x80;
     data.data2[43]=0x7f;
-    HAL_UART_Transmit_DMA(&huart2,data.data2,sizeof(data.data2));
+    HAL_UART_Transmit_DMA(&huart5,data.data2,sizeof(data.data2));
 }

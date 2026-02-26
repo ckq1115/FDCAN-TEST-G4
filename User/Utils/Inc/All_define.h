@@ -9,6 +9,9 @@
 #define CCM_DATA  __attribute__((section(".ccmram")))
 #define CCM_FUNC  __attribute__((section(".ccmram.text"), noinline, flatten))
 
+#define DF_READY 1
+#define DF_ERROR 0
+
 /// 圆周率
 #define PI 3.14159265358979f
 /// 角度转弧度
@@ -25,7 +28,7 @@
 //电容离线检测时间
 #define CAP_OFFLINE_TIME 15;
 //遥控离线检测时间
-#define DBUS_OFFLINE_TIME 30;
+#define DBUS_OFFLINE_TIME 10;
 
 #define INIT_ANGLE 0;
 

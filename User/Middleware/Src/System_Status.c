@@ -80,12 +80,12 @@ void All_Status(ROOT_STATUS_Typedef *Root, DBUS_Typedef *DBUS, MOTOR_Typdef *MOT
     {
         Root->Cap = DEVICE_ONLINE;
     }
-    /*Root->MOTOR_Chassis_1 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[0].DATA);
+    Root->MOTOR_Chassis_1 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[0].DATA);
     Root->MOTOR_Chassis_2 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[1].DATA);
     Root->MOTOR_Chassis_3 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[2].DATA);
     Root->MOTOR_Chassis_4 = DJI_MOTOR_STATUS(&All_Motor.DJI_3508_Chassis[3].DATA);
-    Root->MOTOR_HEAD_Pitch = DM_MOTOR_STATUS(&All_Motor.DM4310_Pitch.DATA);*/
-    Root->MOTOR_HEAD_Yaw = DM_MOTOR_STATUS(&All_Motor.DM4310_Yaw.DATA);
+    //Root->MOTOR_HEAD_Pitch = DM_MOTOR_STATUS(&All_Motor.DM4310_Pitch.DATA);
+    //Root->MOTOR_HEAD_Yaw = DM_MOTOR_STATUS(&All_Motor.DM4310_Yaw.DATA);
 }
 
 static const Status_t Display_Map[] = {
@@ -96,7 +96,7 @@ static const Status_t Display_Map[] = {
 void LED_Show_Status(ROOT_STATUS_Typedef *Root)
 {
     const Status_t *dbus  = &Display_Map[Root->RM_DBUS];
-    const Status_t *motor = &Display_Map[Root->MOTOR_HEAD_Yaw];
+    const Status_t *motor = &Display_Map[Root->MOTOR_Chassis_1&&Root->MOTOR_Chassis_3&&Root->MOTOR_Chassis_3&&Root->MOTOR_Chassis_4];
 
     WS2812_SetPixel(2, motor->r, motor->g, motor->b);
     WS2812_UpdateBreathing(2, motor->breathe);

@@ -100,8 +100,8 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/BSP/Src/BSP_DWT.c
         User/BSP/Inc/WS2812.h
         User/BSP/Src/WS2812.c
-        User/Algorithm/Inc/CKQ_MATH.h
-        User/Algorithm/Src/CKQ_MATH.c
+        User/Utils/Inc/CKQ_MATH.h
+        User/Utils/Src/CKQ_MATH.c
         User/App/Src/IMU_Task.c
         User/App/Inc/IMU_Task.h
         User/Algorithm/Inc/kalman_filter.h
@@ -133,6 +133,14 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/App/Inc/Chassis_Task.h
         User/App/Src/Chassis_Task.c
         User/Middleware/Inc/CAN_Comm.h
+        User/Algorithm/Inc/Power_Ctrl.h
+        User/Algorithm/Src/Power_Ctrl.c
+        User/Device/Inc/Referee.h
+        User/Device/Src/Referee.c
+        User/Utils/Inc/CRC_DJI.h
+        User/Utils/Src/CRC_DJI.c
+        User/Algorithm/Inc/Chassis_Calc.h
+        User/Algorithm/Src/Chassis_Calc.c
 )
 
 # 添加用户源文件

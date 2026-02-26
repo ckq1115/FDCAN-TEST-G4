@@ -1,4 +1,3 @@
-
 #include "kalman_filter.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -136,8 +135,8 @@ void Kalman_Filter_Init(KalmanFilter_t *kf, uint8_t xhatSize, uint8_t uSize, uin
 	kf->temp_vector_data = (float *)user_malloc(sizeof_float * kf->xhatSize);
     memset(kf->temp_vector_data, 0, sizeof_float * kf->xhatSize);
 	kf->temp_vector_data1 = (float *)user_malloc(sizeof_float * kf->xhatSize);
-	memset(kf->temp_vector_data, 0, sizeof_float * kf->xhatSize);
-	
+	memset(kf->temp_vector_data1, 0, sizeof_float * kf->xhatSize);
+
     Matrix_Init(&kf->S, kf->xhatSize, kf->xhatSize, (float *)kf->S_data);
     Matrix_Init(&kf->temp_matrix, kf->xhatSize, kf->xhatSize, (float *)kf->temp_matrix_data);
     Matrix_Init(&kf->temp_matrix1, kf->xhatSize, kf->xhatSize, (float *)kf->temp_matrix_data1);

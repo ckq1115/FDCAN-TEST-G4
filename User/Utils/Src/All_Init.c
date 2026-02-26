@@ -10,8 +10,16 @@ DBUS_UNION_Typdef C_DBUS_UNION = { 0 };
 
 CCM_DATA MOTOR_Typdef All_Motor;
 CCM_DATA ROOT_STATUS_Typedef ROOT_Status;
+
+uint32_t stm32_id[3];
+void Get_UID(uint32_t *uid) {
+    uid[0] = HAL_GetUIDw0();
+    uid[1] = HAL_GetUIDw1();
+    uid[2] = HAL_GetUIDw2();
+}
 void All_Init() {
     DWT_Init(170);
+    Get_UID(stm32_id);
     /* 清除串口错误标志 */
     HAL_DMA_DeInit(&hdma_usart3_rx);
     HAL_DMA_Init(&hdma_usart3_rx);
@@ -33,8 +41,8 @@ void All_Init() {
     HAL_TIM_Base_Start_IT(&htim4);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);
-    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 80);
+    __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 100.0);
     HAL_Delay(500);
     __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 0);
-    HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
+    //HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
 }

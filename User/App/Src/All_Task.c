@@ -4,12 +4,7 @@
 #include "All_Task.h"
 #include <stdio.h>
 
-uint32_t stm32_id[3];
-void Get_UID(uint32_t *uid) {
-    uid[0] = HAL_GetUIDw0();
-    uid[1] = HAL_GetUIDw1();
-    uid[2] = HAL_GetUIDw2();
-}
+#include "Chassis_Task.h"
 
 CCM_FUNC void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         if (htim->Instance == TIM4) {
@@ -22,19 +17,19 @@ static uint8_t icm_raw_cache[14];//DMA读取完成后会先存放在这里，等
 static TaskHandle_t xIMUTaskHandle = NULL;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    // 1. 显式声明并初始化xHigherPriorityTaskWoken（关键修复！）
+    // 显式声明并初始化xHigherPriorityTaskWoken
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     if (GPIO_Pin == ICM_DRDY_PIN) {
         ICM42688_StartRead_IntDMA(icm_tx_buf, icm_rx_buf);
         // 清除MCU EXTI挂起位
         __HAL_GPIO_EXTI_CLEAR_IT(ICM_DRDY_PIN);
-        // 触发APP层任务（此时xHigherPriorityTaskWoken已正确声明）
+        // 触发APP层任务
         if(xIMUTaskHandle != NULL) {
             xTaskNotifyFromISR(xIMUTaskHandle,
                               0,
                               eIncrement,
-                              &xHigherPriorityTaskWoken); // 现在变量已声明
+                              &xHigherPriorityTaskWoken);
             portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         }
     }
@@ -49,7 +44,6 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 
 static uint32_t INS_DWT_Count = 0; // DWT计数基准
 static float imu_period_s = 0.0f;
-static float imu_operate_us = 0;
 void IMU_Task(void *argument)
 {
     (void)argument;
@@ -65,44 +59,36 @@ void IMU_Task(void *argument)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
-
-        uint32_t cnt_last = DWT->CYCCNT;
         //ICM42688_Read_Fast(IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
         ICM42688_ResolveRaw(icm_raw_cache, IMU_Data.gyro, IMU_Data.accel,&IMU_Data.temp);
         IMU_Update_Task(imu_period_s);
-        uint32_t operate_end = DWT->CYCCNT;
-        uint32_t cycle_diff = operate_end - cnt_last;
-        imu_operate_us = cycle_diff / 170;
-
     }
 }
-static uint32_t WS2812_DWT = 0;
-static float WS2812_s = 0.0f;
-static float WS2812_us = 0.0f;
+
 uint8_t flash_id[3] = {0};
 void Motor_Task(void *argument)
 {
     (void)argument;
     W25N01GV_Init();
-    Get_UID(stm32_id);
-    WS2812_DWT = DWT->CYCCNT;
+    if (Chassis_Control_Init(&All_Motor) != DF_READY)
+    {
+        Error_Handler();
+    }
     //Motor_Mode(&hfdcan1,1,0x200,0xfc);
     for(;;)
     {
-        WS2812_s = DWT_GetDeltaT(&WS2812_DWT);
-
-        uint32_t cnt_1last = DWT->CYCCNT;
-
+        Chassis_Control_Task(&All_Motor);
         //W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
         VOFA_justfloat(
-            IMU_Data.pitch,
-            IMU_Data.roll,
-            IMU_Data.yaw,
-            IMU_Data.YawTotalAngle,
-            imu_period_s,imu_operate_us,WS2812_us,WS2812_s,imu_operate_us+WS2812_us,0);
-        uint32_t operate_1end = DWT->CYCCNT;
-        uint32_t cycle_1diff = operate_1end - cnt_1last;
-        WS2812_us = cycle_1diff / 170;
+            All_Power.P5.power,
+            All_Motor.DJI_3508_Chassis[0].DATA.Speed_now,
+            All_Motor.DJI_3508_Chassis[0].DATA.current,
+            All_Motor.DJI_3508_Chassis[1].DATA.Speed_now,
+            All_Motor.DJI_3508_Chassis[1].DATA.current,
+            All_Motor.DJI_3508_Chassis[2].DATA.Speed_now,
+            All_Motor.DJI_3508_Chassis[2].DATA.current,
+            All_Motor.DJI_3508_Chassis[3].DATA.Speed_now,
+            All_Motor.DJI_3508_Chassis[3].DATA.current,m);
         osDelay(1);
     }
 }
@@ -163,10 +149,19 @@ CCM_FUNC void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t Rx
             switch (rx.Identifier)
             {
                 case 0x201:
-                    DM_1to4_Resolve(&All_Motor.DM4310_Yaw, data);
+                    DJI_Motor_Resolve(&All_Motor.DJI_3508_Chassis[0], data);
                     break;
-                case 0x207:
-                    // MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA, data);
+                case 0x202:
+                    DJI_Motor_Resolve(&All_Motor.DJI_3508_Chassis[1], data);
+                    break;
+                case 0x203:
+                    DJI_Motor_Resolve(&All_Motor.DJI_3508_Chassis[2], data);
+                    break;
+                case 0x204:
+                    DJI_Motor_Resolve(&All_Motor.DJI_3508_Chassis[3], data);
+                    break;
+                case 0x205:
+                    DJI_Motor_Resolve(&All_Motor.DJI_6020_Pitch, data);
                     break;
                 case 0x605:
                     CAN_POWER_Rx(&All_Power.P5, data);
@@ -205,22 +200,18 @@ CCM_FUNC void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t Rx
     FDCAN_RxHeaderTypeDef rx;
     uint8_t data[8];
     CAN_Stats_t *stats = NULL;
-
     // 确定统计结构
     if (hfdcan->Instance == FDCAN2)
         stats = &can2_stats;
-
     // 检测FIFO溢出
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_FULL)
     {
         if (stats) stats->fifo_full_count++;
     }
-
     if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_MESSAGE_LOST)
     {
         if (stats) stats->msg_lost_count++;
     }
-
     // 循环读取FIFO中的所有消息
     uint32_t fill_level;
     while ((fill_level = HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1)) > 0)
@@ -230,9 +221,7 @@ CCM_FUNC void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t Rx
             if (stats) stats->error_count++;
             break;
         }
-
         if (stats) stats->rx_count++;
-
         // FDCAN2使用FIFO1
         if (hfdcan->Instance == FDCAN2)
         {
@@ -248,7 +237,6 @@ CCM_FUNC void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t Rx
                     break;
             }
         }
-
         // 安全保护
         if (fill_level > 64) break;
     }

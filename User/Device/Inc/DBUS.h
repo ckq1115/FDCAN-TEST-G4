@@ -6,7 +6,6 @@
 #define G4_FRAMEWORK_DBUS_H
 
 #include "stdint.h"
-#include "CKQ_MATH.h"
 #include "string.h"
 #include "gpio.h"
 #include "usart.h"

@@ -31,5 +31,7 @@ typedef struct
 }V_Input_t;
 
 float CORDIC_Atan2_Fast(float y, float x);
+float CORDIC_Sin_Fast(float angle_deg);
+float CORDIC_Cos_Fast(float angle_deg);
 
 #endif //G4_FRAMEWORK_CKQ_MATH_H

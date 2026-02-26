@@ -39,27 +39,10 @@ typedef struct {
     PID_t PID_S;
 } DJI_MOTOR_Typedef;
 
-typedef struct {
-    float shunt_volt;
-    float bus_volt;
-    float current;
-    float power;
-} Power_Typedef;
-
-typedef struct {
-    Power_Typedef P1, P2, P3, P4, P5;
-} ALL_POWER_RX;
-
-
-
-// --- 外部接口 ---
-extern ALL_POWER_RX All_Power;
-
 // 核心分发与发送
 void DJI_Motor_Dispatch(FDCAN_HandleTypeDef *hfdcan, uint32_t FIFO_x);
 void DJI_Motor_Resolve(void* instance, uint8_t* rx_data);
 void DJI_Motor_Send(FDCAN_HandleTypeDef* hcan, uint32_t stdid, int16_t n1, int16_t n2, int16_t n3, int16_t n4);
 void DJI_Motor_Stuck_Check(DJI_MOTOR_Typedef* motor, float angle_err, float speed_limit, uint16_t time_limit);
-void CAN_POWER_Rx(Power_Typedef* pPower, uint8_t *rx_data);
 
 #endif //G4_FRAMEWORK_DJI_MOTOR_H

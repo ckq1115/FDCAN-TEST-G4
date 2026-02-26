@@ -30,8 +30,10 @@ CCM_DATA IMU_CTRL_FLAG_t  imu_ctrl_flag  = {0};// 控制状态标志
 CCM_DATA PID_t imu_temp;
 CCM_DATA FuzzyRule_t fuzzy_rule_temp;
 CCM_DATA IMU_Data_t IMU_Data = {
-    .accel_bias = {-0.0018742225f, -0.0085052567f, -0.3006388713f},
-    .accel_scale = {0.9930995110f, 0.9944899028f, 0.9923243716f}
+    /*.accel_bias = {-0.0018742225f, -0.0085052567f, -0.3006388713f},
+    .accel_scale = {0.9930995110f, 0.9944899028f, 0.9923243716f}*/
+    .accel_bias = {-0.0039012455f, -0.0100767006f, -0.2877107718f},
+    .accel_scale = {0.9982235869f, 1.0002515018f, 0.9962459264f}
 };
 
 static CCM_DATA uint32_t temp_stable_tick = 0;// 温度稳定计时起点
@@ -119,7 +121,7 @@ CCM_FUNC void IMU_Update_Task(float dt_s)
     {
         case TEMP_INIT:
             IMU_Temp_Control_Init();
-            IMU_QuaternionEKF_Init(10, 0.001f, 10000000, 1, 0.001f,0);
+            IMU_QuaternionEKF_Init(10, 0.001f, 1000000, 0.9996f, 0.001f,0);
             mahony_init(&mahony_filter, 5.0f, 0.01f, 0.001f);
 #ifdef DEBUG_MODE
             imu_ctrl_state = TEMP_PID_CTRL;
@@ -179,7 +181,7 @@ CCM_FUNC void IMU_Update_Task(float dt_s)
 
         case FUSION_RUN:
             WS2812_SetPixel(0, 0, 60, 0);    // 绿色：正常运行
-            //HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);// 陀螺仪零漂收集结束后开启蜂鸣器
+            HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);// 陀螺仪零漂收集结束后开启蜂鸣器
             const float AXIS_DIR[3] = {1.0f, -1.0f, -1.0f};// 根据安装方向调整轴向，确保输出符合右手坐标系
             for (int i = 0; i < 3; i++) {
                 IMU_Data.gyro[i] = (IMU_Data.gyro[i] - IMU_Data.gyro_correct[i]) * AXIS_DIR[i];

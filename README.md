@@ -1,7 +1,7 @@
 G4_Framework 主控框架（STM32G473VET6）
 
 ## 项目概述
-本项目是基于 STM32G473VET6 的分层主控框架，使用 FreeRTOS，提供硬件抽象与应用层支持，适用于 RoboMaster 类机器人。
+本项目是基于 STM32G473VET6 的 RoboMaster 机器人主控框架，使用 FreeRTOS，提供硬件抽象与应用层支持 。
 
 ## 开发环境
 - MCU: STM32G473VET6

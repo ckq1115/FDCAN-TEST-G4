@@ -28,6 +28,7 @@
 #include "Power_CAP.h"
 #include "System_Status.h"
 #include "W25N01GV.h"
+#include "Power_Ctrl.h"
 
 extern uint8_t DBUS_RX_DATA[18];
 extern DBUS_Typedef C_DBUS;
