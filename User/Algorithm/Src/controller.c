@@ -186,8 +186,8 @@ float PID_Calculate(PID_t *pid, float measure, float ref)
     if (pid->Improve & ErrorHandle)
         f_PID_ErrorHandle(pid);
 
-    // uint32_t tmp = pid->DWT_CNT;
-    // pid->dt = DWT_GetDeltaT(&tmp);
+    /*uint32_t tmp = pid->DWT_CNT;
+    pid->dt = DWT_GetDeltaT(&tmp);*/
     pid->dt = 1;  // 差分形式
 
     pid->Measure = measure;
@@ -429,6 +429,7 @@ float Feedforward_Calculate(Feedforward_t *ffc, float ref)
 	//求离散后的单位时间
     uint32_t tmp = ffc->DWT_CNT;
     ffc->dt = DWT_GetDeltaT(&tmp);
+    ffc->DWT_CNT = tmp;
 	//将期望值进行一阶低通滤波
     ffc->Ref = ref * ffc->dt / (ffc->LPF_RC + ffc->dt) +
                ffc->Ref * ffc->LPF_RC / (ffc->LPF_RC + ffc->dt);
@@ -468,12 +469,12 @@ float Feedforward_Calculate(Feedforward_t *ffc, float ref)
 
 /*************************LINEAR DISTURBANCE OBSERVER *************************/
 void LDOB_Init(
-    LDOB_t *ldob,
-    float max_d,
-    float deadband,
+    LDOB_t *ldob,//线性扰动观测器结构体
+    float max_d,//扰动观测器输出限幅
+    float deadband,//扰动观测器输出死区带宽占比
     float *c,
-    float lpf_rc,
-    uint16_t measure_dot_ols_order,
+    float lpf_rc,//扰动观测器低通滤波参数
+    uint16_t measure_dot_ols_order,//最小二乘提取信号微分阶数
     uint16_t measure_ddot_ols_order)
 {
     ldob->Max_Disturbance = max_d;
@@ -518,6 +519,7 @@ float LDOB_Calculate(LDOB_t *ldob, float measure, float u)
 {
     uint32_t tmp = ldob->DWT_CNT;
     ldob->dt = DWT_GetDeltaT(&tmp);
+    ldob->DWT_CNT = tmp;
 
     ldob->Measure = measure;
 
@@ -586,6 +588,7 @@ float TD_Calculate(TD_t *td, float input)
 
     uint32_t tmp = td->DWT_CNT;
     td->dt = DWT_GetDeltaT(&tmp);
+    td->DWT_CNT = tmp;
    //时间间隔过大 丢掉该数据
     if (td->dt > 0.5f)
         return 0;

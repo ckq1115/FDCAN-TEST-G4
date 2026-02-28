@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "Chassis_Task.h"
+#include "Test_Task.h"
 
 CCM_FUNC void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         if (htim->Instance == TIM4) {
@@ -80,15 +81,25 @@ void Motor_Task(void *argument)
         Chassis_Control_Task(&All_Motor);
         //W25N01GV_ReadID(flash_id);// ID 应该是 EF AA 21
         VOFA_justfloat(
-            All_Power.P5.power,
+            m,
+            All_Motor.DJI_3508_Chassis[0].PID_S.Output,
             All_Motor.DJI_3508_Chassis[0].DATA.Speed_now,
-            All_Motor.DJI_3508_Chassis[0].DATA.current,
+            All_Motor.DJI_3508_Chassis[1].PID_S.Output,
             All_Motor.DJI_3508_Chassis[1].DATA.Speed_now,
-            All_Motor.DJI_3508_Chassis[1].DATA.current,
+            All_Motor.DJI_3508_Chassis[2].PID_S.Output,
             All_Motor.DJI_3508_Chassis[2].DATA.Speed_now,
-            All_Motor.DJI_3508_Chassis[2].DATA.current,
-            All_Motor.DJI_3508_Chassis[3].DATA.Speed_now,
-            All_Motor.DJI_3508_Chassis[3].DATA.current,m);
+            All_Motor.DJI_3508_Chassis[3].PID_S.Output,
+            All_Motor.DJI_3508_Chassis[3].DATA.Speed_now,All_Power.P5.power);
+        osDelay(1);
+    }
+}
+
+void Test_Task(void *argument)
+{
+    Test_Init();
+    for(;;)
+    {
+        Ctrl_Test_Task();
         osDelay(1);
     }
 }
@@ -160,9 +171,6 @@ CCM_FUNC void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t Rx
                 case 0x204:
                     DJI_Motor_Resolve(&All_Motor.DJI_3508_Chassis[3], data);
                     break;
-                case 0x205:
-                    DJI_Motor_Resolve(&All_Motor.DJI_6020_Pitch, data);
-                    break;
                 case 0x605:
                     CAN_POWER_Rx(&All_Power.P5, data);
                     break;
@@ -174,10 +182,8 @@ CCM_FUNC void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t Rx
         {
             switch (rx.Identifier)
             {
-                case 0x201:
-                    break;
                 case 0x207:
-                    // MOTOR_CAN_RX_6020RM(&All_Motor.GM6020_1.DATA, data);
+                    DJI_Motor_Resolve(&All_Motor.DJI_6020_Pitch, data);
                     break;
                 case 0x605:
                     CAN_POWER_Rx(&All_Power.P5, data);

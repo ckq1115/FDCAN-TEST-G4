@@ -3,6 +3,7 @@
 //
 #include "../Inc/CKQ_MATH.h"
 
+#include "controller.h"
 #include "stm32g473xx.h"
 
 /************************************************************ 万能分隔符 **************************************************************
@@ -250,3 +251,19 @@ inline float CORDIC_Cos_Fast(float angle_rad) {
     return (float)res * 4.65661289e-10f;
 }
 
+/**
+ * @brief 一阶滤波器，适用于电机速度等物理量的平滑处理
+ * @param now 当前原始值
+ * @param last 上一次滤波后的值
+ * @param thresholdValue 突变抑制阈值，超过该值则认为是异常突变，进行特殊处理
+ * @return 滤波后的值
+ * @note 当输入变化超过阈值时，输出将更倾向于上一次的值，以抑制突变；否则正常进行一阶滤波
+ */
+int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue)
+{
+    const float alpha = 0.8f;
+    if(abs(now - last) >= thresholdValue)
+        return (int16_t)(now * 0.2f + last * 0.8f); // 突变抑制
+    else
+        return (int16_t)(now * alpha + last * (1.0f - alpha));
+}

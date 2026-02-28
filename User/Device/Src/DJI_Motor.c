@@ -13,7 +13,8 @@ void DJI_Motor_Resolve(void* instance, uint8_t* rx_data) {
     DATA->Angle_last = DATA->Angle_now;
     DATA->Angle_now  = (int16_t)((rx_data[0] << 8) | rx_data[1]);
     DATA->Speed_last = DATA->Speed_now;
-    DATA->Speed_now  = (int16_t)((rx_data[2] << 8) | rx_data[3]);
+    int16_t spd_raw = (int16_t)((rx_data[2] << 8) | rx_data[3]);
+    DATA->Speed_now  = OneFilter1(spd_raw,DATA->Speed_last, 25000);
     DATA->current    = (int16_t)((rx_data[4] << 8) | rx_data[5]);
     DATA->temperature = rx_data[6]; // 6020/3508有温度，2006不看即可
 

@@ -181,7 +181,7 @@ CCM_FUNC void IMU_Update_Task(float dt_s)
 
         case FUSION_RUN:
             WS2812_SetPixel(0, 0, 60, 0);    // 绿色：正常运行
-            HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);// 陀螺仪零漂收集结束后开启蜂鸣器
+            //HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_2);// 陀螺仪零漂收集结束后开启蜂鸣器
             const float AXIS_DIR[3] = {1.0f, -1.0f, -1.0f};// 根据安装方向调整轴向，确保输出符合右手坐标系
             for (int i = 0; i < 3; i++) {
                 IMU_Data.gyro[i] = (IMU_Data.gyro[i] - IMU_Data.gyro_correct[i]) * AXIS_DIR[i];

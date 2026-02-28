@@ -125,7 +125,7 @@ static float get_initial_power_internal(DJI_MOTOR_Typedef *MOTOR, model_t *model
 {
     float speed_rpm = (float)MOTOR->DATA.Speed_now;
     float omega = speed_rpm * RPM_TO_RAD;      // RPM → rad/s
-    float Iq = (float)MOTOR->DATA.current;    // mA 或 A，根据你的单位
+    float Iq = (float)MOTOR->PID_S.Output*20000/16384;    // mA 或 A，根据你的单位
     float motor_power = 0.0f;
 
     motor_power = model->k1 * omega * Iq       // 可以正负
@@ -348,6 +348,6 @@ void CAN_POWER_Rx(Power_Typedef* Power, uint8_t *rx_data)
     Power->shunt_volt = (float)raw_shunt / 1000.0f;
     Power->bus_volt   = (float)raw_bus   / 1000.0f;
     Power->current    = (float)raw_curr  / 1000.0f;
-    Power->power      = (float)raw_pwr   / 100.0f;
-    //Power->power      = Power->bus_volt * Power->current;
+    //Power->power      = (float)raw_pwr   / 100.0f;
+    Power->power      = Power->bus_volt * Power->current;
 }

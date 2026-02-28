@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "../../User/App/Inc/All_Task.h"
+#include "All_Task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,6 +59,13 @@ osThreadId_t MotorTaskHandle;
 const osThreadAttr_t MotorTask_attributes = {
   .name = "MotorTask",
   .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
+/* Definitions for TestTask */
+osThreadId_t TestTaskHandle;
+const osThreadAttr_t TestTask_attributes = {
+  .name = "TestTask",
+  .priority = (osPriority_t) osPriorityLow,
   .stack_size = 256 * 4
 };
 
@@ -69,6 +76,7 @@ const osThreadAttr_t MotorTask_attributes = {
 
 void IMU_Task(void *argument);
 void Motor_Task(void *argument);
+void Test_Task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -104,6 +112,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of MotorTask */
   MotorTaskHandle = osThreadNew(Motor_Task, NULL, &MotorTask_attributes);
+
+  /* creation of TestTask */
+  TestTaskHandle = osThreadNew(Test_Task, NULL, &TestTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -149,6 +160,24 @@ __weak void Motor_Task(void *argument)
     osDelay(1);
   }
   /* USER CODE END Motor_Task */
+}
+
+/* USER CODE BEGIN Header_Test_Task */
+/**
+* @brief Function implementing the TestTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Test_Task */
+__weak void Test_Task(void *argument)
+{
+  /* USER CODE BEGIN Test_Task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Test_Task */
 }
 
 /* Private application code --------------------------------------------------*/

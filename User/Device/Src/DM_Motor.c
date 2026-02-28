@@ -178,13 +178,3 @@ void DM_Motor_Send(FDCAN_HandleTypeDef* hcan, uint16_t master_id, float m1_cur, 
     }
     FDCAN_Send_Msg(hcan, master_id, data, 8);
 }
-
-// 滤波辅助函数
-int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue)
-{
-    const float alpha = 0.8f;
-    if(abs(now - last) >= thresholdValue)
-        return (int16_t)(now * 0.2f + last * 0.8f); // 突变抑制
-    else
-        return (int16_t)(now * alpha + last * (1.0f - alpha));
-}

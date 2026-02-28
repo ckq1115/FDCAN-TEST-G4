@@ -44,5 +44,5 @@ void All_Init() {
     __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 100.0);
     HAL_Delay(500);
     __HAL_TIM_SET_COMPARE(&htim20, TIM_CHANNEL_2, 0);
-    //HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Stop(&htim20, TIM_CHANNEL_2);
 }

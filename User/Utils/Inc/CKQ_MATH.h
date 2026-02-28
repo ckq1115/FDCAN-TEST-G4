@@ -33,5 +33,6 @@ typedef struct
 float CORDIC_Atan2_Fast(float y, float x);
 float CORDIC_Sin_Fast(float angle_deg);
 float CORDIC_Cos_Fast(float angle_deg);
+int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue);
 
 #endif //G4_FRAMEWORK_CKQ_MATH_H

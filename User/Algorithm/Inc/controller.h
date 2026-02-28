@@ -107,7 +107,7 @@ typedef struct __packed pid_t
     float Pout;
     float Iout;
     float Dout;
-    float ITerm;
+    float ITerm;//本次积分增量
 
     float Output;
     float Last_Output;
@@ -198,31 +198,31 @@ typedef struct __packed
 {
     float c[3]; // G(s) = 1/(c2s^2 + c1s + c0)
 
-    float Measure;
-    float Last_Measure;
+    float Measure;//观测器输入，通常为系统输出
+    float Last_Measure;//上次观测器输入
 
-    float u; // system input
+    float u; //观测器输入，通常为系统控制输入
 
-    float DeadBand;
+    float DeadBand;// 扰动输出死区带宽占比
 
     uint32_t DWT_CNT;
     float dt;
 
-    float LPF_RC; // RC = 1/omegac
+    float LPF_RC; // RC = 1/omegac	一阶低通滤波参数
 
-    float Measure_dot;
-    float Measure_ddot;
-    float Last_Measure_dot;
+    float Measure_dot;//观测器输入的微分
+    float Measure_ddot;//观测器输入的二阶微分
+    float Last_Measure_dot;//上次观测器输入的微分
 
-    uint16_t Measure_dot_OLS_Order;
-    Ordinary_Least_Squares_t Measure_dot_OLS;
-    uint16_t Measure_ddot_OLS_Order;
-    Ordinary_Least_Squares_t Measure_ddot_OLS;
+    uint16_t Measure_dot_OLS_Order;//最小二乘提取信号微分阶数
+    Ordinary_Least_Squares_t Measure_dot_OLS;//最小二乘提取信号微分
+    uint16_t Measure_ddot_OLS_Order;//最小二乘提取信号二阶微分阶数
+    Ordinary_Least_Squares_t Measure_ddot_OLS;//最小二乘提取信号二阶微分
 
-    float Disturbance;
-    float Output;
-    float Last_Disturbance;
-    float Max_Disturbance;
+    float Disturbance;//观测到的扰动值
+    float Output;//扰动补偿输出
+    float Last_Disturbance;//上次观测到的扰动值
+    float Max_Disturbance;//扰动输出限幅
 } LDOB_t;
 
 void LDOB_Init(
