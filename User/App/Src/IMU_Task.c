@@ -127,9 +127,9 @@ CCM_FUNC void IMU_Update_Task(float dt_s)
             imu_ctrl_state = TEMP_PID_CTRL;
 #endif
 #ifdef RELEASE_MODE
-            IMU_Data.gyro_correct[0] = 0.225585952f;
-            IMU_Data.gyro_correct[1] = -1.25061035f;
-            IMU_Data.gyro_correct[2] = -0.00604248093f;
+            IMU_Data.gyro_correct[0] = 0.00413000258f;
+            IMU_Data.gyro_correct[1] = -0.0189137105f;
+            IMU_Data.gyro_correct[2] = -0.000697744836f;
             imu_ctrl_state = FUSION_RUN;
 #endif
             break;
@@ -301,18 +301,34 @@ void IMU_Status_Check(void) {
     static uint16_t stuck_cnt = 0;
     static uint16_t zero_cnt = 0; // 新增：全零检测计数器
 
-    // 1. 静态零值检测，判断加速度或陀螺仪是否全为0
+    static uint16_t nan_cnt = 0;  // NaN检测计数器
+
+    // NaN检测
+    uint8_t is_nan = 0;
+    // 一次性检测加速度、陀螺仪所有轴 + 温度是否存在NaN
+    is_nan = (isnanf(IMU_Data.accel[0]) || isnanf(IMU_Data.accel[1]) || isnanf(IMU_Data.accel[2]) ||
+              isnanf(IMU_Data.gyro[0])  || isnanf(IMU_Data.gyro[1])  || isnanf(IMU_Data.gyro[2])  ||
+              isnanf(IMU_Data.temp));
+    // 连续2个周期检测到NaN才判定异常
+    if (is_nan) {
+        nan_cnt = (nan_cnt >= 2) ? 2 : nan_cnt + 1;  // 防止溢出
+        if (nan_cnt >= 2) imu_ctrl_state = ERROR_STATE;
+    } else {
+        nan_cnt = 0;
+    }
+
+    // 静态零值检测，判断加速度或陀螺仪是否全为0
     if ((fabsf(IMU_Data.accel[0]) < 1e-6f && fabsf(IMU_Data.accel[1]) < 1e-6f && fabsf(IMU_Data.accel[2]) < 1e-6f)
      || (fabsf(IMU_Data.gyro[0]) < 1e-6f && fabsf(IMU_Data.gyro[1]) < 1e-6f && fabsf(IMU_Data.gyro[2]) < 1e-6f))
     {
-        if (++zero_cnt >= 2) { // 连续2个周期全为0才判定为异常，避免第一次启动时数据全零状态误判
+        if (++zero_cnt >= 2) { // 连续2个周期全为0才判定为异常
             imu_ctrl_state = ERROR_STATE;
         }
     } else {
         zero_cnt = 0; // 只要有数据不为 0，立即重置计数器
     }
 
-    // 2. 数据卡死检测
+    // 数据卡死检测
     // 将六轴数据求和，若连续 100 次采样完全一致，判定为传感器内部逻辑死锁（SPI/I2C 还在传，但数据不更新）
     float sum = 0;
     for(int i=0; i<3; i++) {
@@ -327,7 +343,7 @@ void IMU_Status_Check(void) {
         stuck_cnt = 0;
         last_sum = sum;
     }
-    // 3. 温度边界保护
+    // 温度边界保护
     if (IMU_Data.temp > 50.0f || IMU_Data.temp < 0.0f) {
         imu_ctrl_state = ERROR_STATE;
     }

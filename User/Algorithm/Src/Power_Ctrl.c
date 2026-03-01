@@ -6,340 +6,230 @@
 #include <stdint.h>
 #include "DJI_Motor.h"
 #include "All_Define.h"
-
+#include <math.h>
 CCM_DATA ALL_POWER_RX All_Power;
 
-static float SafeSectionLimit(float max, float min, float data);
-static float SafeSqrt(float x);
-static void Power_Mode_Transition(Power_Sample_Manager_t *mgr);
-
-// 底盘总功率的采样通道（请根据实际硬件修改宏定义）
-#define CHASSIS_POWER_SENSOR All_Power.P5
-#define RPM_TO_RAD 0.104719755f
-// 全局静态变量（用于模拟心跳计数器，也可以用HAL_GetTick()）
-static uint32_t s_tick_counter = 0;
-
-/**
-  * @brief  采样更新函数（必须在500Hz的定时中断或回调中调用！）
-  * @param  raw_sample_power: 采样得到的底盘总功率
-  */
-void Power_Sample_Update(model_t *model, float raw_sample_power)
-{
-    Power_Sample_Manager_t *mgr = &model->sample_mgr;
-    s_tick_counter++; // 模拟时间戳递增
-
-    /* 1. 心跳检测（数据是否更新） */
-    // 这里假设power值不变超过一定时间视为掉线（也可以通过通信标志位）
-    if (fabsf(raw_sample_power - mgr->raw_power) < 0.1f)
-    {
-        // 数据未变化，增加离线计数
-        if (s_tick_counter - mgr->last_update_tick > SAMPLE_TIMEOUT_CNT)
-        {
-            mgr->is_offline = 1;
-        }
-    }
-    else
-    {
-        // 数据有更新，复位状态
-        mgr->is_offline = 0;
-        mgr->last_update_tick = s_tick_counter;
-        mgr->raw_power = raw_sample_power;
-    }
-
-    /* 2. 合理性检测（物理边界检查） */
-    if (raw_sample_power < 0.0f || raw_sample_power > 500.0f)
-    {
-        mgr->is_offline = 1; // 数据不合理，强制离线
-    }
-
-    /* 3. 模式切换逻辑 */
-    Power_Mode_Transition(mgr);
-
-    /* 4. 如果在线，进行低通滤波 */
-    if (mgr->mode == POWER_CTRL_MODE_FUSION)
-    {
-        mgr->filtered_power = mgr->filtered_power * (1.0f - POWER_SAMPLE_ALPHA) +
-                              raw_sample_power * POWER_SAMPLE_ALPHA;
-    }
-}
-
-/**
-  * @brief  模式平滑切换，避免硬切换导致的电流跳变
-  */
-static void Power_Mode_Transition(Power_Sample_Manager_t *mgr)
-{
-    if (mgr->is_offline)
-    {
-        mgr->mode = POWER_CTRL_MODE_MODEL_ONLY;
-    }
-    else
-    {
-        mgr->mode = POWER_CTRL_MODE_FUSION;
-    }
-}
-
-/**
-  * @brief  功率控制初始化函数
-  */
 void Power_control_init(model_t *model)
 {
-    /* PID参数初始化（略，保持不变） */
-    model->PID_Buffer.Kp = 2.0f;
-    model->PID_Buffer.Ki = 0.0f;
-    model->PID_Buffer.Kd = 0.0f;
-    model->PID_Buffer.ILt = 0.0f;
-    model->PID_Buffer.AlLt = 100.0f;
-    model->PID_Buffer.Error[0] = 0.0f;
-    model->PID_Buffer.Error[1] = 0.0f;
+    model->PID_Buffer.Kp = 2;
+    model->PID_Buffer.Ki = 0;
+    model->PID_Buffer.Kd = 0;
+    model->PID_Buffer.ILt = 0;
+    model->PID_Buffer.AlLt = 100;
 
-    //模型参数初始化
-    model->k1 = 0.0218f;
-    model->k2 = 0.0458f;
-    model->k3 = 0.00810f;
-    model->k4 = 2.60f;   // 总固定损耗（四个轮子总和）
+    model->k1 = 1.9231391337e-02f;//kt：M3508鼙鼓的转矩常数Nm/A,对应机械功率项，与转速和电流乘积成正比
+    model->k2 = 1.7416871226e-01f;//kr：M3508鼙鼓和C620电调的电阻Ω，对应铜损项，与电流平方成正比
+    model->k3 = 1.9560518379e-05f;//k_iron：M3508电机铁损系数 (W/(rad/s)²)，对应铁损项（磁滞/涡流损耗），与转速平方成正比
+    model->k4 = 2.1291187956e+00f;//k0：M3508电机和C620电调的静态功率W，对应固定损耗项，与转速和电流无关
 
-    /* 采样管理器初始化 */
-    model->sample_mgr.raw_power = 0.0f;
-    model->sample_mgr.filtered_power = 0.0f;
-    model->sample_mgr.model_total_power = 0.0f;
-    model->sample_mgr.power_error = 0.0f;
-    model->sample_mgr.last_update_tick = 0;
-    model->sample_mgr.is_offline = 1; // 初始化为离线，等采样正常后自动切融合
-    model->sample_mgr.mode = POWER_CTRL_MODE_MODEL_ONLY;
+    model->rpm_to_rad = 2.0f * 3.1415926f / 60.0f;//RPM转rad/s
 }
 
 /**
-  * @brief  内部静态函数：电机功率计算
-  */
-/*static float get_initial_power_internal(DJI_MOTOR_Typedef *MOTOR, model_t *model)
+  * @author: 楠
+  * @performance: 电机功率计算函数
+  * @parameter: 电机结构体
+  * @time: 24-4-1
+  * @ReadMe: 依靠电机功率模型计算电机功率
+ */
+float get_initial_power(DJI_MOTOR_Typedef *MOTOR, model_t *model)
 {
-    float speed_rpm = (float)MOTOR->DATA.Speed_now;
-    float omega = speed_rpm * RPM_TO_RAD;   // 必须定义 RPM_TO_RAD
-    float Iq = (float)MOTOR->DATA.current;  // ⚠ 必须用真实反馈电流
+    float w = MOTOR->DATA.Speed_now * model->rpm_to_rad;   // rad/s
+    float I = MOTOR->PID_S.Output * 0.001f;
 
-    return model->k1 * fabsf(omega * Iq) +
-           model->k2 * Iq * Iq +
-           model->k3 * fabsf(omega);
-}*/
-static float get_initial_power_internal(DJI_MOTOR_Typedef *MOTOR, model_t *model)
-{
-    float speed_rpm = (float)MOTOR->DATA.Speed_now;
-    float omega = speed_rpm * RPM_TO_RAD;      // RPM → rad/s
-    float Iq = (float)MOTOR->PID_S.Output*20000/16384;    // mA 或 A，根据你的单位
-    float motor_power = 0.0f;
+    float power = model->k1 * w * I
+                + model->k2 * I * I
+                + model->k3 * w * w
+                + model->k4;
 
-    motor_power = model->k1 * omega * Iq       // 可以正负
-            + model->k2 * Iq * Iq          // 始终正
-            + model->k3 * omega            // 可以正负
-            + model->k4;                   // 常数损耗
+    if(power < 0) power = 0;
 
-    return motor_power;
+    return power;
 }
 
 /**
-  * @brief  内部静态函数：功率限制
-  */
-static void chassis_power_limit_internal(DJI_MOTOR_Typedef *MOTOR,
-                                         uint8_t motor_idx,
-                                         model_t *model)
+  * @author: 楠
+  * @performance: 电机功率限制函数
+  * @parameter: 电机结构体
+  * @time: 24-4-1
+  * @ReadMe: 对电机功率进行缩放进行功率再分配
+ */
+void chassis_power_limit(DJI_MOTOR_Typedef *MOTOR,
+                         float P_limit,
+                         model_t *model)
 {
-    if (motor_idx >= CHASSIS_MOTOR_NUM) return;
+    float w = MOTOR->DATA.Speed_now * model->rpm_to_rad;
+    float I_old = MOTOR->PID_S.Output * 0.001f;
 
-    float speed_rpm = (float)MOTOR->DATA.Speed_now;
-    float omega = speed_rpm * RPM_TO_RAD;
-    float Iq = (float)MOTOR->DATA.current;
+    /* 当前功率 */
+    float P_now = model->k1 * w * I_old
+                + model->k2 * I_old * I_old
+                + model->k3 * w * w
+                + model->k4;
 
-    float abs_omega = fabsf(omega);
+    if(P_now <= P_limit)
+        return;
 
-    float a_eq = model->k2;
-    float b_eq = model->k1 * abs_omega;
-    float c_eq = model->k3 * abs_omega - model->scaled_give_power[motor_idx];
+    /* 构造二次方程 */
+    float A = model->k2;
+    float B = model->k1 * w;
+    float C = model->k3 * w * w + model->k4 - P_limit;
 
-    float discriminant = b_eq * b_eq - 4.0f * a_eq * c_eq;
+    float discriminant = B*B - 4*A*C;
 
-    if (discriminant < MIN_DISCRIMINANT)
+    if(discriminant <= 0.0f)
     {
-        MOTOR->PID_S.Output = 0.0f;
+        MOTOR->PID_S.Output = 0;
         return;
     }
 
-    float sqrt_disc = SafeSqrt(discriminant);
+    float sqrt_d = sqrtf(discriminant);
 
-    float new_I;
+    float I1 = (-B + sqrt_d) / (2*A);
+    float I2 = (-B - sqrt_d) / (2*A);
 
-    if (Iq >= 0)
-        new_I = (-b_eq + sqrt_disc) / (2.0f * a_eq);
+    /* 选与原电流同号解 */
+    float I_final;
+
+    if(I_old >= 0)
+        I_final = (I1 >= 0) ? I1 : I2;
     else
-        new_I = (-b_eq - sqrt_disc) / (2.0f * a_eq);
+        I_final = (I1 < 0) ? I1 : I2;
 
-    MOTOR->PID_S.Output =
-        SafeSectionLimit(MAX_CURRENT_OUTPUT,
-                         -MAX_CURRENT_OUTPUT,
-                         new_I);
+
+    MOTOR->PID_S.Output = I_final * 1000.0f;
 }
 
-/**
-  * @brief  缓冲能量PID
-  */
-static void PID_buffer_internal(PID_buffer_t *PID_buffer, float power_buffer, float target_buffer)
+float SectionLimit_f(float max, float min, float data)
 {
-    PID_buffer->Error[0] = target_buffer - power_buffer;
-    PID_buffer->P_out = PID_buffer->Error[0] * PID_buffer->Kp;
-    PID_buffer->I_out += PID_buffer->Error[0] * PID_buffer->Ki;
-    PID_buffer->I_out = SafeSectionLimit(PID_buffer->ILt, -PID_buffer->ILt, PID_buffer->I_out);
-    PID_buffer->D_out = -(PID_buffer->Error[0] - PID_buffer->Error[1]) * PID_buffer->Kd;
-    PID_buffer->Error[1] = PID_buffer->Error[0];
-    PID_buffer->All_out = PID_buffer->P_out + PID_buffer->I_out + PID_buffer->D_out;
-    PID_buffer->All_out = SafeSectionLimit(PID_buffer->AlLt, -PID_buffer->AlLt, PID_buffer->All_out);
+    if(max < min)
+    {
+        float t = max;
+        max = min;
+        min = t;
+    }
+
+    if(data > max) return max;
+    if(data < min) return min;
+
+    return data;
 }
 
 /**
-  * @brief  功率控制总函数
-  */
-float initial_give_power[CHASSIS_MOTOR_NUM];
+  * @author: 楠
+  * @performance: 缓冲能量PID计算
+  * @parameter: PID 缓冲能量 要求剩余的最低缓冲能量
+  * @time: 24-4-1
+  * @ReadMe:
+ */
+void PID_buffer(PID_buffer_t *PID_buffer, float power_buffer, float temp)
+{
+    PID_buffer->Error[0] = temp - power_buffer;
+    /*比例输出*/
+    PID_buffer->P_out = (PID_buffer->Error[0] * PID_buffer->Kp);
+    /*积分输出*/
+    PID_buffer->I_out += (PID_buffer->Error[0] * PID_buffer->Ki);
+    /*积分限幅*/
+    PID_buffer->I_out = SectionLimit_f(PID_buffer->ILt, -PID_buffer->ILt, PID_buffer->I_out);
+    /*微分输出*/
+    PID_buffer->D_out = -(PID_buffer->Error[0] - PID_buffer->Error[1]) * PID_buffer->Kd;
+    /*数据迭代*/
+    PID_buffer->Error[1] = PID_buffer->Error[0];
+    /*角度环总输出*/
+    PID_buffer->All_out = (PID_buffer->P_out + PID_buffer->I_out + PID_buffer->D_out);
+    /*总输出限幅*/
+    PID_buffer->All_out = SectionLimit_f(PID_buffer->AlLt, -PID_buffer->AlLt, PID_buffer->All_out);
+}
+
+/**
+  * @author: 楠
+  * @performance: 功率控制总函数
+  * @parameter: 电容标志位（是否开启）
+  * @time: 24-4-1
+  * @ReadMe: 放在底盘PID解算后即可
+ */
 uint8_t chassis_power_control(CONTAL_Typedef *RUI_V_CONTAL_V,
                            User_Data_T *usr_data,
                            model_t *model,
                            CAP_RXDATA *CAP_GET,
                            MOTOR_Typdef *MOTOR)
 {
-    /* 可编辑参数 */
-    const float TARGET_BUFFER = 25.0f;
-    const int16_t NORMAL_POWER_COMP = 15;
-    const int16_t CAP_POWER_BOOST = 200;
-    const uint16_t CAP_LOW_VOLT_THRESH = 7;
-    const uint16_t DEFAULT_POWER_LIMIT = 80;
+    //*可编辑部分*begin*//
+    const int16_t PowerCompensation = 15;  //正常模式下的功率补偿
+    const uint16_t SuperMaxPower = 200;	    //超级电容下的功率补偿
+    const uint16_t capValt = 170;	        //强制退出的电压阈值
+    //*可编辑部分*end*//
 
-    uint16_t max_power_limit = DEFAULT_POWER_LIMIT;
-    float input_power = 0.0f;
-    float chassis_max_power = 0.0f;
+    uint16_t max_power_limit = 80;  //最大功率限制
+    float input_power = 0;		    // 输入功率（裁判系统）
+    float chassis_max_power = 0;
+    float initial_give_power[4];    // 初始功率由PID计算以及电机数据得到
+    float initial_total_power = 0;
 
-    float initial_total_power = 0.0f;
-
-    /* 1. 获取裁判系统数据 */
-    if (usr_data->robot_status.chassis_power_limit != 0)
+    if(usr_data->robot_status.chassis_power_limit != 0 )
     {
-        max_power_limit = usr_data->robot_status.chassis_power_limit;
+        max_power_limit = usr_data->robot_status.chassis_power_limit;	// 得到最大功率限制
     }
-    float chassis_power_buffer = usr_data->power_heat_data.buffer_energy;
+//    float chassis_power = usr_data->power_heat_data.chassis_power_reserved;		// 得到底盘功率
+    float chassis_power_buffer = usr_data->power_heat_data.buffer_energy;	// 得到缓冲能量
 
-    /* 2. 缓冲能量PID */
-    PID_buffer_internal(&model->PID_Buffer, chassis_power_buffer, TARGET_BUFFER);
-    input_power = (float)max_power_limit - model->PID_Buffer.All_out;
+    /*没电容时开启*/
+    PID_buffer(&model->PID_Buffer, chassis_power_buffer, 25);  // 缓冲能量闭环
 
-    /* 3. 超级电容管理 */
-    if (CAP_GET->CAP_VOLT > (float)CAP_LOW_VOLT_THRESH)
+    input_power = (float)max_power_limit - model->PID_Buffer.All_out;  // 加入缓冲能量
+
+    if(CAP_GET->CAP_VOLT > (float)capValt)
     {
-        chassis_max_power = (model->sample_mgr.mode == POWER_CTRL_MODE_FUSION && RUI_V_CONTAL_V->BOTTOM.CAP == 1) ?
-                            (input_power + CAP_POWER_BOOST) : (input_power + NORMAL_POWER_COMP);
+        if(RUI_V_CONTAL_V->BOTTOM.CAP == 0)
+        {
+            // 功率设置略大于最大输入功率，提高电容能量利用率
+            chassis_max_power = input_power + (float)PowerCompensation;
+        }else
+        {
+            // 开启电容
+            chassis_max_power = input_power + (float)SuperMaxPower;
+        }
     }
     else
     {
+        // 电容电量低或电容离线时无补偿
         chassis_max_power = input_power;
     }
 
-    /* 4. 计算模型预测总功率 */
-    initial_give_power[0] = get_initial_power_internal(&MOTOR->DJI_3508_Chassis[0], model);
-    initial_give_power[1] = get_initial_power_internal(&MOTOR->DJI_3508_Chassis[1], model);
-    initial_give_power[2] = get_initial_power_internal(&MOTOR->DJI_3508_Chassis[2], model);
-    initial_give_power[3] = get_initial_power_internal(&MOTOR->DJI_3508_Chassis[3], model);
+    //得到初始电机功率
+    initial_give_power[0] = get_initial_power(&MOTOR->DJI_3508_Chassis_1, model);
+    initial_give_power[1] = get_initial_power(&MOTOR->DJI_3508_Chassis_2, model);
+    initial_give_power[2] = get_initial_power(&MOTOR->DJI_3508_Chassis_3, model);
+    initial_give_power[3] = get_initial_power(&MOTOR->DJI_3508_Chassis_4, model);
 
-    for (uint8_t i = 0; i < CHASSIS_MOTOR_NUM; i++)
+    for(uint8_t i = 0; i < 4; i++)
     {
-        initial_total_power += initial_give_power[i];
+        if (initial_give_power[i] < 0) // 不考虑负功(反向电动势)
+            continue;
+        initial_total_power += initial_give_power[i]; // 获得底盘总功率
     }
-    initial_total_power += model->k4;
-    model->sample_mgr.model_total_power = initial_total_power;
-    /* 核心融合逻辑：如果采样在线，动态校准模型系数 k4 (固定损耗) */
-    if (model->sample_mgr.mode == POWER_CTRL_MODE_FUSION)
-    {
-        // 计算误差：采样功率 - 模型功率
-        model->sample_mgr.power_error = model->sample_mgr.filtered_power - initial_total_power;
 
-        // 慢环校正：利用误差微调 k4 (固定损耗/偏移量)
-        // 这是一个积分过程，慢慢消除模型的静态误差
-        if (fabsf(model->sample_mgr.power_error) < 50.0f)
+    if (initial_total_power > chassis_max_power) // 确定是否大于最大功率
+    {
+        float power_scale = chassis_max_power / initial_total_power;
+
+        for(uint8_t i = 0; i < 4; i++)
         {
-            model->k4 += model->sample_mgr.power_error * MODEL_CALIB_GAIN;
+            model->scaled_give_power[i] = initial_give_power[i] * power_scale; // 获得缩放功率
         }
 
-        // 限制 k4 的范围，防止校正过头
-        model->k4 = SafeSectionLimit(10.0f, 0.0f, model->k4);
+        //对每个电机分别进行功率限制
+        chassis_power_limit(&MOTOR->DJI_3508_Chassis_1, 1, model);
+        chassis_power_limit(&MOTOR->DJI_3508_Chassis_2, 2, model);
+        chassis_power_limit(&MOTOR->DJI_3508_Chassis_3, 3, model);
+        chassis_power_limit(&MOTOR->DJI_3508_Chassis_4, 4, model);
     }
-
-    /* 5. 功率限制与分配（无论什么模式，都用当前的模型系数进行分配） */
-    /* 注意：这里我们不直接用采样功率做分配，因为采样是总功率，无法知道每个轮子的情况 */
-    /* 我们通过校准模型系数，让模型变得精准，然后依然用模型进行分配 */
-    /* 计算动态功率（不含 k4） */
-    float dynamic_power = 0.0f;
-
-    for (uint8_t i = 0; i < CHASSIS_MOTOR_NUM; i++)
-    {
-        dynamic_power += initial_give_power[i];
-    }
-
-    /* 允许的动态功率 = 总限制 - 固定损耗 */
-    float allowed_dynamic_power = chassis_max_power - model->k4;
-
-    if (allowed_dynamic_power < 0.0f)
-        allowed_dynamic_power = 0.0f;
-
-    /* 只有动态功率超限才缩放 */
-    if (dynamic_power > allowed_dynamic_power)
-    {
-        float power_scale = allowed_dynamic_power / dynamic_power;
-
-        for (uint8_t i = 0; i < CHASSIS_MOTOR_NUM; i++)
-        {
-            model->scaled_give_power[i] =
-                initial_give_power[i] * power_scale;
-        }
-
-        chassis_power_limit_internal(&MOTOR->DJI_3508_Chassis[0], 0, model);
-        chassis_power_limit_internal(&MOTOR->DJI_3508_Chassis[1], 1, model);
-        chassis_power_limit_internal(&MOTOR->DJI_3508_Chassis[2], 2, model);
-        chassis_power_limit_internal(&MOTOR->DJI_3508_Chassis[3], 3, model);
-    }
-    else
-    {
-        for (uint8_t i = 0; i < CHASSIS_MOTOR_NUM; i++)
-        {
-            model->scaled_give_power[i] = initial_give_power[i];
-        }
-    }
-
-    return DF_READY;
+    return RUI_DF_READY;
 }
 
-/* 辅助函数实现 */
-static float SafeSectionLimit(float max, float min, float data)
-{
-    if (max >= min)
-    {
-        if (data >= max) return max;
-        else if (data <= min) return min;
-        else return data;
-    }
-    else
-    {
-        float temp = min; min = max; max = temp;
-        if (data >= max) return max;
-        else if (data <= min) return min;
-        else return data;
-    }
-}
-
-static float SafeSqrt(float x)
-{
-    return (x < MIN_DISCRIMINANT) ? 0.0f : sqrtf(x);
-}
-
+//功率计接收解算函数
 void CAN_POWER_Rx(Power_Typedef* Power, uint8_t *rx_data)
 {
-    /*int16_t raw_shunt = (int16_t)((rx_data[0] << 8) | rx_data[1]);
-    int16_t raw_bus = (int16_t)((rx_data[2] << 8) | rx_data[3]);
-    int16_t raw_curr = (int16_t)((rx_data[4] << 8) | rx_data[5]);
-    int16_t raw_pwr = (int16_t)((rx_data[6] << 8) | rx_data[7]);*/
     int16_t raw_shunt = (int16_t)((int16_t)rx_data[0] << 8 | rx_data[1]);
     int16_t raw_bus   = (int16_t)((int16_t)rx_data[2] << 8 | rx_data[3]);
     int16_t raw_curr  = (int16_t)((int16_t)rx_data[4] << 8 | rx_data[5]);

@@ -9,6 +9,7 @@
 #define CCM_DATA  __attribute__((section(".ccmram")))
 #define CCM_FUNC  __attribute__((section(".ccmram.text"), noinline, flatten))
 
+#define RUI_DF_READY 1
 #define DF_READY 1
 #define DF_ERROR 0
 
